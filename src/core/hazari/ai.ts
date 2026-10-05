@@ -64,7 +64,7 @@ export function getRandomAgentName(seatIndex: number, usedNames?: Set<string>): 
   const pool = available.length > 0 ? available : DYNAMIC_AGENT_NAMES;
   const picked = pool[Math.floor(Math.random() * pool.length)];
   if (usedNames) usedNames.add(picked);
-  return `Agent ${picked} (#${seatIndex + 1})`;
+  return `Agent ${picked}`;
 }
 
 export function createAgentPlayer(seatIndex: number, overrideName?: string): Player {
