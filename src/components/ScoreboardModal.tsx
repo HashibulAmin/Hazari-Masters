@@ -1,6 +1,6 @@
 import React from 'react';
 import { TableState } from '../core/hazari/types';
-import { Trophy, Bot, User, CheckCircle2 } from 'lucide-react';
+import { Trophy, Bot, User, CheckCircle2, ArrowLeft, Award, RotateCcw } from 'lucide-react';
 
 interface ScoreboardModalProps {
   isOpen: boolean;
@@ -18,17 +18,34 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
   if (!isOpen) return null;
 
   const sortedPlayers = [...tableState.players].sort((a, b) => b.cumulativeScore - a.cumulativeScore);
+  const seatWins = tableState.seatWins || [0, 0, 0, 0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden text-slate-100">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-400" />
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden text-slate-100"
+      >
+        {/* Header with Back button */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/70">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1 text-xs font-semibold"
+              title="Back to Table"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
             <div>
-              <h2 className="text-base font-bold text-slate-100">Hazari Championship Leaderboard</h2>
-              <p className="text-xs text-slate-400">Target: 1000 points to claim tournament victory</p>
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-400" />
+                <span>Hazari Championship Board</span>
+              </h2>
+              <p className="text-[11px] text-slate-400">Target: 1000 points. Multi-round championship history.</p>
             </div>
           </div>
           <button
@@ -40,15 +57,16 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
         </div>
 
         {/* Players Standings */}
-        <div className="p-6 space-y-3">
+        <div className="p-6 space-y-3 max-h-[65vh] overflow-y-auto">
           {sortedPlayers.map((player, rank) => {
             const isMe = userSeatIndex === player.seatIndex;
             const progress = Math.min(100, (player.cumulativeScore / 1000) * 100);
+            const winsCount = seatWins[player.seatIndex] || 0;
 
             return (
               <div
                 key={player.id}
-                className={`p-3 rounded-2xl border transition-all ${
+                className={`p-3.5 rounded-2xl border transition-all ${
                   rank === 0
                     ? 'bg-amber-950/30 border-amber-500/40 shadow-lg'
                     : isMe
@@ -88,7 +106,15 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
                           {player.isAgent ? 'Bot' : 'Human'}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400">Seat {player.seatIndex + 1}</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-slate-400">Seat {player.seatIndex + 1}</span>
+                        {winsCount > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1">
+                            <Award className="w-2.5 h-2.5 text-amber-400" />
+                            <span>{winsCount} Championship{winsCount === 1 ? '' : 's'} Won</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -118,10 +144,17 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
           })}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between text-xs text-slate-400">
-          <span>Current Round: {tableState.currentRound}</span>
-          <span>Deck Point Total: 360 pts/deal</span>
+        {/* Footer with Back button */}
+        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between">
+          <div className="text-xs text-slate-400">
+            Shuffling table resets points and tracks tournament wins.
+          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition"
+          >
+            Back to Table
+          </button>
         </div>
       </div>
     </div>

@@ -83,7 +83,8 @@ export type TableStatus =
   | 'PLAYING_TRICK'
   | 'TRICK_RESOLVED'
   | 'ROUND_SUMMARY'
-  | 'GAME_OVER';
+  | 'GAME_OVER'
+  | 'COMPLETED_CLOSED';
 
 export interface TableState {
   tableId: string;
@@ -99,6 +100,7 @@ export interface TableState {
   tricksHistory: TrickResult[];
   targetScore: number; // 1000
   gameWinnerSeat: number | null;
+  seatWins?: number[]; // count of tournament game wins across table shuffles
   lastActionMessage: string;
   updatedAt: number;
 }

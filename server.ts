@@ -122,11 +122,13 @@ io.on('connection', (socket: Socket) => {
     'join_table',
     ({
       tableId = 'main',
+      tableName,
       userId,
       userName,
       preferredSeat,
     }: {
       tableId?: string;
+      tableName?: string;
       userId: string;
       userName: string;
       preferredSeat?: number;
@@ -135,7 +137,7 @@ io.on('connection', (socket: Socket) => {
       currentUserId = userId;
       socket.join(tableId);
 
-      const table = getOrCreateTable(tableId);
+      const table = getOrCreateTable(tableId, tableName);
       const joinResult = table.joinTable(userId, userName, socket.id, preferredSeat);
 
       if (joinResult.success) {

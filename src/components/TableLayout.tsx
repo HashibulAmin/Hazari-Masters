@@ -22,15 +22,22 @@ import {
   VolumeX,
   Shuffle,
   Brain,
+  ArrowLeft,
+  CheckCircle2,
 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
+import { syncTableToFirestore, archiveCompletedGame } from '../firebase/tableService';
 
-export const TableLayout: React.FC = () => {
+interface TableLayoutProps {
+  onBackToDashboard?: () => void;
+}
+
+export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) => {
   const dispatch = useAppDispatch();
   const { tableState, localHand, userSeatIndex } = useAppSelector(
     (state) => state.table
   );
-  const { audioEnabled, userName } = useAppSelector((state) => state.network);
+  const { audioEnabled, userName, userId } = useAppSelector((state) => state.network);
 
   const [showScoreboard, setShowScoreboard] = useState(false);
   const [showNetworkTest, setShowNetworkTest] = useState(false);
@@ -38,6 +45,13 @@ export const TableLayout: React.FC = () => {
   const [showAIModelModal, setShowAIModelModal] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName);
+
+  // Sync active table state to Firestore
+  React.useEffect(() => {
+    if (tableState) {
+      syncTableToFirestore(tableState, userId, userName);
+    }
+  }, [tableState, userId, userName]);
 
   if (!tableState) {
     return (
@@ -111,6 +125,17 @@ export const TableLayout: React.FC = () => {
       <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-emerald-950/60 px-4 py-2.5 flex items-center justify-between gap-3 shadow-lg z-20">
         {/* Brand & Room Info */}
         <div className="flex items-center gap-3">
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 hover:border-slate-500 transition shadow-sm"
+              title="Return to Table Lobby"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Lobby</span>
+            </button>
+          )}
+
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 p-0.5 shadow-md flex items-center justify-center font-serif font-black text-slate-950 text-lg">
             H
           </div>
@@ -204,13 +229,28 @@ export const TableLayout: React.FC = () => {
           </button>
 
           {tableState.status === 'GAME_OVER' && (
-            <button
-              onClick={handleShuffleTable}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg animate-pulse"
-            >
-              <Shuffle className="w-3.5 h-3.5" />
-              <span>Shuffle Table</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShuffleTable}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg animate-pulse"
+              >
+                <Shuffle className="w-3.5 h-3.5" />
+                <span>Shuffle Table</span>
+              </button>
+              {onBackToDashboard && (
+                <button
+                  onClick={async () => {
+                    await archiveCompletedGame(tableState, userId);
+                    onBackToDashboard();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg"
+                  title="Archive completed match to database and return to lobby"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Archive &amp; Close</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </header>

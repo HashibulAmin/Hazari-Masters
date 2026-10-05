@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered player or guest user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 64 },
+        "displayName": { "type": "string", "maxLength": 64 },
+        "role": { "type": "string", "enum": ["admin", "player"] },
+        "isGuest": { "type": "boolean" },
+        "totalWins": { "type": "number" },
+        "totalGamesPlayed": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "username", "role", "isGuest"]
+    },
+    "GameTable": {
+      "title": "GameTable",
+      "description": "Live or running multiplayer game table in Hazari Masters",
+      "type": "object",
+      "properties": {
+        "tableId": { "type": "string", "maxLength": 128 },
+        "tableName": { "type": "string", "maxLength": 128 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdByName": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["WAITING", "DEALING", "ARRANGING", "PLAYING_TRICK", "TRICK_RESOLVED", "ROUND_SUMMARY", "GAME_OVER", "COMPLETED_CLOSED"]
+        },
+        "targetScore": { "type": "number" },
+        "currentRound": { "type": "number" },
+        "humanPlayerCount": { "type": "number" },
+        "availableSeatsCount": { "type": "number" },
+        "isCompleted": { "type": "boolean" },
+        "closedBy": { "type": "array" }
+      },
+      "required": ["tableId", "tableName", "createdBy", "status", "humanPlayerCount", "availableSeatsCount"]
+    },
+    "GameResult": {
+      "title": "GameResult",
+      "description": "Completed match summary archive with round-by-round points breakdown",
+      "type": "object",
+      "properties": {
+        "gameId": { "type": "string", "maxLength": 128 },
+        "tableId": { "type": "string", "maxLength": 128 },
+        "tableName": { "type": "string", "maxLength": 128 },
+        "completedAt": { "type": "number" },
+        "winnerId": { "type": "string", "maxLength": 128 },
+        "winnerName": { "type": "string", "maxLength": 64 },
+        "winnerCumulativeScore": { "type": "number" },
+        "roundsHistory": { "type": "array" },
+        "players": { "type": "array" },
+        "closedBy": { "type": "array" }
+      },
+      "required": ["gameId", "tableId", "winnerId", "winnerName", "completedAt"]
+    },
+    "GameInvite": {
+      "title": "GameInvite",
+      "description": "Real-time game invite sent from a host to an online player",
+      "type": "object",
+      "properties": {
+        "inviteId": { "type": "string", "maxLength": 128 },
+        "tableId": { "type": "string", "maxLength": 128 },
+        "tableName": { "type": "string", "maxLength": 128 },
+        "fromUserId": { "type": "string", "maxLength": 128 },
+        "fromUserName": { "type": "string", "maxLength": 64 },
+        "toUserId": { "type": "string", "maxLength": 128 },
+        "toUserEmail": { "type": "string", "maxLength": 128 },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "ACCEPTED", "REJECTED", "EXPIRED"]
+        },
+        "createdAt": { "type": "number" },
+        "expiresAt": { "type": "number" }
+      },
+      "required": ["inviteId", "tableId", "fromUserId", "toUserId", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User profile directory with roles and stats"
+    },
+    "/tables/{tableId}": {
+      "schema": { "$ref": "GameTable" },
+      "description": "Active tables listing and state"
+    },
+    "/completed_games/{gameId}": {
+      "schema": { "$ref": "GameResult" },
+      "description": "Archive of completed tables"
+    },
+    "/invites/{inviteId}": {
+      "schema": { "$ref": "GameInvite" },
+      "description": "Real-time game table invitations"
+    }
+  }
+}

@@ -103,7 +103,7 @@ export const TrickArena: React.FC<TrickArenaProps> = ({
                   initial={{ scale: 0.5, y: -20, opacity: 0 }}
                   animate={{ scale: 1, y: 0, opacity: 1 }}
                   transition={{ type: 'spring', damping: 15 }}
-                  className="flex flex-col items-center p-2 rounded-xl bg-slate-950/75 border border-slate-800 backdrop-blur-md shadow-lg"
+                  className="flex flex-col items-center justify-between p-2 rounded-2xl bg-slate-950/85 border border-slate-800 backdrop-blur-md shadow-xl min-h-[120px]"
                 >
                   <div className="flex items-center justify-between w-full text-[10px] text-slate-400 mb-1 px-1">
                     <span className="font-semibold text-slate-200 truncate">{play.playerName}</span>
@@ -111,14 +111,14 @@ export const TrickArena: React.FC<TrickArenaProps> = ({
                   </div>
 
                   {/* Played Cards Fan */}
-                  <div className="flex items-center -space-x-3.5 my-1">
+                  <div className="flex items-center -space-x-3.5 my-1.5 py-0.5">
                     {play.cards.map((card) => (
                       <PlayingCard key={card.code} card={card} size="sm" showPoints={false} />
                     ))}
                   </div>
 
                   {/* Evaluation Label */}
-                  <span className="text-[10px] font-medium text-emerald-400 truncate max-w-[130px] text-center mt-0.5">
+                  <span className="text-[10px] font-semibold text-emerald-400 truncate max-w-[130px] text-center px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30">
                     {play.evaluation.categoryName}
                   </span>
                 </motion.div>

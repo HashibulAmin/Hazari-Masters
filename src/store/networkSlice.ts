@@ -71,6 +71,14 @@ export const networkSlice = createSlice({
         localStorage.setItem('hazari_user_name', action.payload);
       }
     },
+    setUserCredentials: (state, action: PayloadAction<{ userId: string; userName: string }>) => {
+      state.userId = action.payload.userId;
+      state.userName = action.payload.userName;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hazari_user_id', action.payload.userId);
+        localStorage.setItem('hazari_user_name', action.payload.userName);
+      }
+    },
     setTableId: (state, action: PayloadAction<string>) => {
       state.tableId = action.payload;
     },
@@ -114,6 +122,7 @@ export const networkSlice = createSlice({
 
 export const {
   setUserName,
+  setUserCredentials,
   setTableId,
   toggleAudio,
   setSimulateLagMs,
