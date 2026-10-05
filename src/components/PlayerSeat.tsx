@@ -16,6 +16,7 @@ interface PlayerSeatProps {
   onLeaveSeat?: () => void;
   canPlayNow?: boolean;
   onPlayTrick?: () => void;
+  winsCount?: number;
 }
 
 export const PlayerSeat: React.FC<PlayerSeatProps> = ({
@@ -31,6 +32,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
   onLeaveSeat,
   canPlayNow,
   onPlayTrick,
+  winsCount = 0,
 }) => {
   const isSouth = position === 'south';
 
@@ -106,7 +108,14 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
               {player.name}
               {isLocalPlayer && <span className="text-[9px] text-emerald-400 font-normal">(You)</span>}
             </span>
-            <span className="text-[9px] text-slate-500 font-mono">S{player.seatIndex + 1}</span>
+            <div className="flex items-center gap-1 shrink-0">
+              {winsCount > 0 && (
+                <span className="text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 rounded font-bold" title={`${winsCount} Tournament 1000-point Wins on this table`}>
+                  🏆 {winsCount}W
+                </span>
+              )}
+              <span className="text-[9px] text-slate-500 font-mono">S{player.seatIndex + 1}</span>
+            </div>
           </div>
 
           {/* Score & Progress towards 1000 */}

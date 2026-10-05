@@ -28,35 +28,37 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if (isOwner(userId) || isAdmin());
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 
     // Live Game Tables Collection
     match /tables/{tableId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
     }
 
     // Completed Games Archive Collection
     match /completed_games/{gameId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() || isAdmin();
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 
     // Game Invites Collection
     match /invites/{inviteId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // User Personal AI Models Collection
+    match /user_models/{userId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
     }
   }
 }

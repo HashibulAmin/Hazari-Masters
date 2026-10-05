@@ -41,6 +41,22 @@ function AppRouter() {
         // If guest or newly authenticated, default to dashboard
         setCurrentScreen((prev) => (prev === 'game' ? 'game' : 'dashboard'));
       } else {
+        const storedGuest = typeof window !== 'undefined' ? localStorage.getItem('hazari_guest_profile') : null;
+        if (storedGuest) {
+          try {
+            const guestProfile = JSON.parse(storedGuest) as UserProfile;
+            setCurrentUser(guestProfile);
+            dispatch(
+              setUserCredentials({
+                userId: guestProfile.uid,
+                userName: guestProfile.username,
+              })
+            );
+            setCurrentScreen((prev) => (prev === 'game' ? 'game' : 'dashboard'));
+            setAuthLoading(false);
+            return;
+          } catch {}
+        }
         setCurrentUser(null);
         setCurrentScreen('auth');
       }
@@ -97,6 +113,23 @@ function AppRouter() {
     setCurrentScreen('game');
   };
 
+  const handleInspectTable = (tableId: string, tableName: string) => {
+    setActiveTableId(tableId);
+    setActiveTableName(tableName);
+    dispatch(setTableId(tableId));
+    dispatch({ type: 'socket/init' });
+    dispatch({
+      type: 'socket/inspectTable',
+      payload: {
+        tableId,
+        tableName,
+        userId: currentUser?.uid || 'spectator',
+        userName: currentUser?.username || 'Spectator',
+      },
+    });
+    setCurrentScreen('game');
+  };
+
   const handleBackToDashboard = () => {
     setCurrentScreen('dashboard');
   };
@@ -125,6 +158,7 @@ function AppRouter() {
         <DashboardScreen
           currentUser={currentUser}
           onJoinTable={handleJoinTable}
+          onInspectTable={handleInspectTable}
           onLogout={handleLogout}
         />
       )}

@@ -109,9 +109,9 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-slate-400">Seat {player.seatIndex + 1}</span>
                         {winsCount > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1">
-                            <Award className="w-2.5 h-2.5 text-amber-400" />
-                            <span>{winsCount} Championship{winsCount === 1 ? '' : 's'} Won</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1">
+                            <Trophy className="w-2.5 h-2.5 text-amber-400" />
+                            <span>{winsCount}x 1000-pt Champion</span>
                           </span>
                         )}
                       </div>
@@ -127,6 +127,19 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
                     )}
                   </div>
                 </div>
+
+                {/* Highlighted Wins Count text for each 1000 point win on this table */}
+                {winsCount > 0 && (
+                  <div className="mt-2 py-1 px-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-bold flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Wins count on this table:</span>
+                    </div>
+                    <span className="font-mono text-xs text-amber-200 font-black">
+                      {winsCount} {winsCount === 1 ? 'Win' : 'Wins'} (1000-point Tournament Victories)
+                    </span>
+                  </div>
+                )}
 
                 {/* Progress bar */}
                 <div className="mt-2.5 w-full h-2 rounded-full bg-slate-800/80 overflow-hidden">

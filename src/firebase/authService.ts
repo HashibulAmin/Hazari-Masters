@@ -110,12 +110,45 @@ export async function loginWithGoogle(): Promise<UserProfile> {
 }
 
 export async function playAsGuest(): Promise<UserProfile> {
-  const cred = await signInAnonymously(auth);
-  const guestName = `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
-  await updateProfile(cred.user, { displayName: guestName });
-  return createOrUpdateUserProfile(cred.user, guestName, true);
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  const guestName = `Guest_${randomNum}`;
+  const now = new Date().toISOString();
+
+  try {
+    const cred = await signInAnonymously(auth);
+    try {
+      await updateProfile(cred.user, { displayName: guestName });
+    } catch {}
+    return await createOrUpdateUserProfile(cred.user, guestName, true);
+  } catch (error: any) {
+    console.warn('Anonymous Firebase auth restricted, fallback to local guest session:', error?.message);
+    const guestUid = `guest_${Math.random().toString(36).substring(2, 10)}`;
+    const guestProfile: UserProfile = {
+      uid: guestUid,
+      email: null,
+      username: guestName,
+      displayName: guestName,
+      role: 'player',
+      isGuest: true,
+      totalWins: 0,
+      totalGamesPlayed: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hazari_guest_profile', JSON.stringify(guestProfile));
+      localStorage.setItem('hazari_user_id', guestUid);
+      localStorage.setItem('hazari_user_name', guestName);
+    }
+    return guestProfile;
+  }
 }
 
 export async function logoutUser(): Promise<void> {
-  await signOut(auth);
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('hazari_guest_profile');
+  }
+  try {
+    await signOut(auth);
+  } catch {}
 }

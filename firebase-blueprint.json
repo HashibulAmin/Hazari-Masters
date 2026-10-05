@@ -80,6 +80,21 @@
         "expiresAt": { "type": "number" }
       },
       "required": ["inviteId", "tableId", "fromUserId", "toUserId", "status"]
+    },
+    "UserAIModel": {
+      "title": "UserAIModel",
+      "description": "User specific trained offline random forest model and metrics",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 64 },
+        "version": { "type": "string", "maxLength": 64 },
+        "trainedAt": { "type": "number" },
+        "sampleCount": { "type": "number" },
+        "validationAccuracy": { "type": "number" },
+        "trainedGameIds": { "type": "array" }
+      },
+      "required": ["userId", "trainedAt", "validationAccuracy"]
     }
   },
   "firestore": {
@@ -98,6 +113,10 @@
     "/invites/{inviteId}": {
       "schema": { "$ref": "GameInvite" },
       "description": "Real-time game table invitations"
+    },
+    "/user_models/{userId}": {
+      "schema": { "$ref": "UserAIModel" },
+      "description": "User specific offline AI models"
     }
   }
 }

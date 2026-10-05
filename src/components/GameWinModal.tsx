@@ -1,18 +1,20 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { TableState } from '../core/hazari/types';
-import { Trophy, Sparkles, RefreshCw } from 'lucide-react';
+import { Trophy, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
 
 interface GameWinModalProps {
   tableState: TableState;
   onShuffleTable: () => void;
+  onCompleteGame?: () => void;
   audioEnabled: boolean;
 }
 
 export const GameWinModal: React.FC<GameWinModalProps> = ({
   tableState,
   onShuffleTable,
+  onCompleteGame,
   audioEnabled,
 }) => {
   const { gameWinnerSeat, players, targetScore } = tableState;
@@ -72,14 +74,26 @@ export const GameWinModal: React.FC<GameWinModalProps> = ({
           ))}
         </div>
 
-        {/* Action Button: Shuffle Table & Play Again */}
-        <button
-          onClick={onShuffleTable}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl transition-all hover:scale-105 active:scale-95"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span>Shuffle Table &amp; Play Again</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="w-full flex flex-col gap-2">
+          <button
+            onClick={onShuffleTable}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl transition-all hover:scale-102 active:scale-98"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Shuffle Table &amp; Play Again</span>
+          </button>
+
+          {onCompleteGame && (
+            <button
+              onClick={onCompleteGame}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-white font-bold text-xs uppercase tracking-wider border border-slate-700 hover:border-emerald-500 shadow-lg transition-all"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Finish &amp; Complete Game</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

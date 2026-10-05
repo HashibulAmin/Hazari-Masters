@@ -24,6 +24,7 @@ import {
   Brain,
   ArrowLeft,
   CheckCircle2,
+  Eye,
 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
 import { syncTableToFirestore, archiveCompletedGame } from '../firebase/tableService';
@@ -114,6 +115,20 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
     if (tempName.trim()) {
       dispatch(setUserName(tempName.trim()));
       setIsEditingName(false);
+    }
+  };
+
+  const handleCompleteAndArchive = async () => {
+    try {
+      // Train model on single game table data before completing (Requirement 7)
+      await fetch('/api/model/train-now', { method: 'POST' });
+    } catch {}
+
+    dispatch({ type: 'socket/completeGame', payload: { tableId: tableState.tableId } });
+    await archiveCompletedGame(tableState, userId);
+
+    if (onBackToDashboard) {
+      onBackToDashboard();
     }
   };
 
@@ -255,6 +270,29 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
         </div>
       </header>
 
+      {/* Spectator / Inspector Banner */}
+      {userSeatIndex === null && (
+        <div className="w-full bg-gradient-to-r from-emerald-950/90 via-slate-900 to-purple-950/90 border-b border-emerald-500/30 px-4 py-1.5 flex items-center justify-between text-xs z-10">
+          <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+            <Eye className="w-4 h-4 text-emerald-400 animate-pulse" />
+            <span>Table Inspector Mode (Live Spectator)</span>
+            <span className="text-[11px] text-slate-400 hidden sm:inline">— Watching live game play across all 4 seats</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-400 hidden md:inline">Click "Take Seat" on any open seat to join the game</span>
+            {onBackToDashboard && (
+              <button
+                onClick={onBackToDashboard}
+                className="px-2.5 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1 border border-slate-700 hover:border-slate-500"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                <span>Exit Inspector</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Table Felt Arena */}
       <main className="flex-1 w-full max-w-[96rem] mx-auto px-2 sm:px-4 py-1.5 sm:py-2 flex flex-col justify-between items-center gap-1.5 sm:gap-2">
         {/* North Seat (Opponent Top) */}
@@ -268,6 +306,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
             status={tableState.status}
             position="north"
             onTakeSeat={playerNorth.isAgent ? () => handleTakeSeat(northSeat) : undefined}
+            winsCount={tableState.seatWins ? tableState.seatWins[northSeat] : 0}
           />
         </div>
 
@@ -284,6 +323,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
               status={tableState.status}
               position="west"
               onTakeSeat={playerWest.isAgent ? () => handleTakeSeat(westSeat) : undefined}
+              winsCount={tableState.seatWins ? tableState.seatWins[westSeat] : 0}
             />
           </div>
 
@@ -307,6 +347,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
               status={tableState.status}
               position="east"
               onTakeSeat={playerEast.isAgent ? () => handleTakeSeat(eastSeat) : undefined}
+              winsCount={tableState.seatWins ? tableState.seatWins[eastSeat] : 0}
             />
           </div>
         </div>
@@ -325,6 +366,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
             onLeaveSeat={userSeatIndex === mySeat ? handleLeaveSeat : undefined}
             canPlayNow={canPlayTrick}
             onPlayTrick={handlePlayTrick}
+            winsCount={tableState.seatWins ? tableState.seatWins[mySeat] : 0}
           />
 
           {/* Arrangement Board when player is organizing their 13 cards */}
@@ -367,6 +409,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
       <GameWinModal
         tableState={tableState}
         onShuffleTable={handleShuffleTable}
+        onCompleteGame={handleCompleteAndArchive}
         audioEnabled={audioEnabled}
       />
     </div>

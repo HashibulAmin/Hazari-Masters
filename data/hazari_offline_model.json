@@ -1,8 +1,8 @@
 {
   "metadata": {
     "version": "1.2.0-offline",
-    "trainedAt": 1791165987066,
-    "sampleCount": 60,
+    "trainedAt": 1791221241601,
+    "sampleCount": 41,
     "validationAccuracy": 1,
     "featureImportances": {
       "trioCount": 0.22,
@@ -16,612 +16,37 @@
       "uniqueRanks": 0.02,
       "suitVariance": 0.01
     },
-    "dailyTrainScheduledAt": 1791252387066
+    "dailyTrainScheduledAt": 1791307641601
   },
   "trees": [
     {
       "isLeaf": false,
-      "featureIndex": 3,
-      "threshold": 0.3,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 1,
-        "threshold": 0.1,
-        "left": {
-          "isLeaf": true,
-          "predictedClass": "defensive",
-          "classDistribution": {
-            "optimal_ev": 5,
-            "aggressive": 0,
-            "defensive": 18,
-            "balanced": 0
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "aggressive",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 15,
-            "defensive": 0,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "balanced",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 0,
-          "defensive": 0,
-          "balanced": 22
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 3,
-      "threshold": 0.3,
+      "featureIndex": 0,
+      "threshold": 0.2,
       "left": {
         "isLeaf": false,
         "featureIndex": 4,
         "threshold": 0.2,
         "left": {
-          "isLeaf": true,
-          "predictedClass": "aggressive",
-          "classDistribution": {
-            "optimal_ev": 5,
-            "aggressive": 17,
-            "defensive": 0,
-            "balanced": 0
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "defensive",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 0,
-            "defensive": 20,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "balanced",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 0,
-          "defensive": 0,
-          "balanced": 18
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 9,
-      "threshold": 0.3,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 3,
-        "threshold": 0.3,
-        "left": {
           "isLeaf": false,
-          "featureIndex": 0,
-          "threshold": 0.2,
+          "featureIndex": 2,
+          "threshold": 0.4,
           "left": {
             "isLeaf": true,
-            "predictedClass": "defensive",
+            "predictedClass": "balanced",
             "classDistribution": {
               "optimal_ev": 0,
               "aggressive": 0,
-              "defensive": 16,
-              "balanced": 0
+              "defensive": 0,
+              "balanced": 9
             }
           },
           "right": {
-            "isLeaf": true,
-            "predictedClass": "optimal_ev",
-            "classDistribution": {
-              "optimal_ev": 11,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 0
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "balanced",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 0,
-            "defensive": 0,
-            "balanced": 15
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "aggressive",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 18,
-          "defensive": 0,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 3,
-      "threshold": 0.3,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 0,
-        "threshold": 0.2,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 4,
-          "threshold": 0.2,
-          "left": {
             "isLeaf": true,
             "predictedClass": "aggressive",
             "classDistribution": {
               "optimal_ev": 0,
-              "aggressive": 10,
-              "defensive": 0,
-              "balanced": 0
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "defensive",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 16,
-              "balanced": 0
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "optimal_ev",
-          "classDistribution": {
-            "optimal_ev": 14,
-            "aggressive": 0,
-            "defensive": 0,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "balanced",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 0,
-          "defensive": 0,
-          "balanced": 20
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 8,
-      "threshold": 0.5,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 4,
-        "threshold": 0.2,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 0,
-          "threshold": 0.2,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "balanced",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 11
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "optimal_ev",
-            "classDistribution": {
-              "optimal_ev": 14,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 0
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "defensive",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 0,
-            "defensive": 19,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "aggressive",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 16,
-          "defensive": 0,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 4,
-      "threshold": 0.2,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 2,
-        "threshold": 0.4,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 3,
-          "threshold": 0.3,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "optimal_ev",
-            "classDistribution": {
-              "optimal_ev": 18,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 0
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "balanced",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 10
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "aggressive",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 18,
-            "defensive": 0,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "defensive",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 0,
-          "defensive": 14,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 0,
-      "threshold": 0.2,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 9,
-        "threshold": 0.3,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 3,
-          "threshold": 0.3,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "defensive",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 16,
-              "balanced": 0
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "balanced",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 11
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "aggressive",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 15,
-            "defensive": 0,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "optimal_ev",
-        "classDistribution": {
-          "optimal_ev": 18,
-          "aggressive": 0,
-          "defensive": 0,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 2,
-      "threshold": 0.4,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 3,
-        "threshold": 0.3,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 0,
-          "threshold": 0.2,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "defensive",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 19,
-              "balanced": 0
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "optimal_ev",
-            "classDistribution": {
-              "optimal_ev": 10,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 0
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "balanced",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 0,
-            "defensive": 0,
-            "balanced": 15
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "aggressive",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 16,
-          "defensive": 0,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 0,
-      "threshold": 0.2,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 1,
-        "threshold": 0.1,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 4,
-          "threshold": 0.2,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "balanced",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 12
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "defensive",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 17,
-              "balanced": 0
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "aggressive",
-          "classDistribution": {
-            "optimal_ev": 0,
-            "aggressive": 12,
-            "defensive": 0,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "optimal_ev",
-        "classDistribution": {
-          "optimal_ev": 19,
-          "aggressive": 0,
-          "defensive": 0,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 9,
-      "threshold": 0.3,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 0,
-        "threshold": 0.2,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 3,
-          "threshold": 0.3,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "defensive",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 18,
-              "balanced": 0
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "balanced",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 8
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "optimal_ev",
-          "classDistribution": {
-            "optimal_ev": 14,
-            "aggressive": 0,
-            "defensive": 0,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "aggressive",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 20,
-          "defensive": 0,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 2,
-      "threshold": 0.4,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 0,
-        "threshold": 0.2,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 4,
-          "threshold": 0.2,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "balanced",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 13
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "defensive",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 16,
-              "balanced": 0
-            }
-          }
-        },
-        "right": {
-          "isLeaf": true,
-          "predictedClass": "optimal_ev",
-          "classDistribution": {
-            "optimal_ev": 15,
-            "aggressive": 0,
-            "defensive": 0,
-            "balanced": 0
-          }
-        }
-      },
-      "right": {
-        "isLeaf": true,
-        "predictedClass": "aggressive",
-        "classDistribution": {
-          "optimal_ev": 0,
-          "aggressive": 16,
-          "defensive": 0,
-          "balanced": 0
-        }
-      }
-    },
-    {
-      "isLeaf": false,
-      "featureIndex": 2,
-      "threshold": 0.4,
-      "left": {
-        "isLeaf": false,
-        "featureIndex": 4,
-        "threshold": 0.2,
-        "left": {
-          "isLeaf": false,
-          "featureIndex": 0,
-          "threshold": 0.2,
-          "left": {
-            "isLeaf": true,
-            "predictedClass": "balanced",
-            "classDistribution": {
-              "optimal_ev": 0,
-              "aggressive": 0,
-              "defensive": 0,
-              "balanced": 12
-            }
-          },
-          "right": {
-            "isLeaf": true,
-            "predictedClass": "optimal_ev",
-            "classDistribution": {
-              "optimal_ev": 16,
-              "aggressive": 0,
+              "aggressive": 8,
               "defensive": 0,
               "balanced": 0
             }
@@ -640,12 +65,382 @@
       },
       "right": {
         "isLeaf": true,
+        "predictedClass": "optimal_ev",
+        "classDistribution": {
+          "optimal_ev": 12,
+          "aggressive": 0,
+          "defensive": 0,
+          "balanced": 0
+        }
+      }
+    },
+    {
+      "isLeaf": false,
+      "featureIndex": 1,
+      "threshold": 0.1,
+      "left": {
+        "isLeaf": false,
+        "featureIndex": 0,
+        "threshold": 0.2,
+        "left": {
+          "isLeaf": false,
+          "featureIndex": 3,
+          "threshold": 0.3,
+          "left": {
+            "isLeaf": true,
+            "predictedClass": "defensive",
+            "classDistribution": {
+              "optimal_ev": 0,
+              "aggressive": 0,
+              "defensive": 13,
+              "balanced": 0
+            }
+          },
+          "right": {
+            "isLeaf": true,
+            "predictedClass": "balanced",
+            "classDistribution": {
+              "optimal_ev": 0,
+              "aggressive": 0,
+              "defensive": 0,
+              "balanced": 9
+            }
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "optimal_ev",
+          "classDistribution": {
+            "optimal_ev": 9,
+            "aggressive": 0,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      },
+      "right": {
+        "isLeaf": true,
         "predictedClass": "aggressive",
         "classDistribution": {
           "optimal_ev": 0,
-          "aggressive": 20,
+          "aggressive": 10,
           "defensive": 0,
           "balanced": 0
+        }
+      }
+    },
+    {
+      "isLeaf": false,
+      "featureIndex": 2,
+      "threshold": 0.4,
+      "left": {
+        "isLeaf": false,
+        "featureIndex": 0,
+        "threshold": 0.2,
+        "left": {
+          "isLeaf": true,
+          "predictedClass": "balanced",
+          "classDistribution": {
+            "optimal_ev": 0,
+            "aggressive": 0,
+            "defensive": 9,
+            "balanced": 10
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "optimal_ev",
+          "classDistribution": {
+            "optimal_ev": 8,
+            "aggressive": 0,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      },
+      "right": {
+        "isLeaf": false,
+        "featureIndex": 3,
+        "threshold": 0.3,
+        "left": {
+          "isLeaf": true,
+          "predictedClass": "aggressive",
+          "classDistribution": {
+            "optimal_ev": 0,
+            "aggressive": 13,
+            "defensive": 0,
+            "balanced": 0
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "optimal_ev",
+          "classDistribution": {
+            "optimal_ev": 1,
+            "aggressive": 0,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      }
+    },
+    {
+      "isLeaf": false,
+      "featureIndex": 2,
+      "threshold": 0.4,
+      "left": {
+        "isLeaf": true,
+        "predictedClass": "optimal_ev",
+        "classDistribution": {
+          "optimal_ev": 11,
+          "aggressive": 0,
+          "defensive": 5,
+          "balanced": 9
+        }
+      },
+      "right": {
+        "isLeaf": false,
+        "featureIndex": 6,
+        "threshold": 0.4,
+        "left": {
+          "isLeaf": true,
+          "predictedClass": "aggressive",
+          "classDistribution": {
+            "optimal_ev": 0,
+            "aggressive": 15,
+            "defensive": 0,
+            "balanced": 0
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "optimal_ev",
+          "classDistribution": {
+            "optimal_ev": 1,
+            "aggressive": 0,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      }
+    },
+    {
+      "isLeaf": false,
+      "featureIndex": 4,
+      "threshold": 0.6,
+      "left": {
+        "isLeaf": false,
+        "featureIndex": 2,
+        "threshold": 0.7,
+        "left": {
+          "isLeaf": false,
+          "featureIndex": 0,
+          "threshold": 0.2,
+          "left": {
+            "isLeaf": true,
+            "predictedClass": "balanced",
+            "classDistribution": {
+              "optimal_ev": 0,
+              "aggressive": 0,
+              "defensive": 0,
+              "balanced": 13
+            }
+          },
+          "right": {
+            "isLeaf": true,
+            "predictedClass": "optimal_ev",
+            "classDistribution": {
+              "optimal_ev": 9,
+              "aggressive": 0,
+              "defensive": 0,
+              "balanced": 0
+            }
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "aggressive",
+          "classDistribution": {
+            "optimal_ev": 0,
+            "aggressive": 8,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      },
+      "right": {
+        "isLeaf": true,
+        "predictedClass": "defensive",
+        "classDistribution": {
+          "optimal_ev": 0,
+          "aggressive": 0,
+          "defensive": 11,
+          "balanced": 0
+        }
+      }
+    },
+    {
+      "isLeaf": false,
+      "featureIndex": 1,
+      "threshold": 0.1,
+      "left": {
+        "isLeaf": false,
+        "featureIndex": 0,
+        "threshold": 0.2,
+        "left": {
+          "isLeaf": false,
+          "featureIndex": 3,
+          "threshold": 0.3,
+          "left": {
+            "isLeaf": true,
+            "predictedClass": "defensive",
+            "classDistribution": {
+              "optimal_ev": 0,
+              "aggressive": 0,
+              "defensive": 11,
+              "balanced": 0
+            }
+          },
+          "right": {
+            "isLeaf": true,
+            "predictedClass": "balanced",
+            "classDistribution": {
+              "optimal_ev": 0,
+              "aggressive": 0,
+              "defensive": 0,
+              "balanced": 5
+            }
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "optimal_ev",
+          "classDistribution": {
+            "optimal_ev": 12,
+            "aggressive": 0,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      },
+      "right": {
+        "isLeaf": true,
+        "predictedClass": "aggressive",
+        "classDistribution": {
+          "optimal_ev": 0,
+          "aggressive": 13,
+          "defensive": 0,
+          "balanced": 0
+        }
+      }
+    },
+    {
+      "isLeaf": false,
+      "featureIndex": 0,
+      "threshold": 0.2,
+      "left": {
+        "isLeaf": false,
+        "featureIndex": 1,
+        "threshold": 0.1,
+        "left": {
+          "isLeaf": true,
+          "predictedClass": "defensive",
+          "classDistribution": {
+            "optimal_ev": 0,
+            "aggressive": 0,
+            "defensive": 7,
+            "balanced": 7
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "aggressive",
+          "classDistribution": {
+            "optimal_ev": 0,
+            "aggressive": 12,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      },
+      "right": {
+        "isLeaf": true,
+        "predictedClass": "optimal_ev",
+        "classDistribution": {
+          "optimal_ev": 15,
+          "aggressive": 0,
+          "defensive": 0,
+          "balanced": 0
+        }
+      }
+    },
+    {
+      "isLeaf": false,
+      "featureIndex": 9,
+      "threshold": 0.3,
+      "left": {
+        "isLeaf": false,
+        "featureIndex": 0,
+        "threshold": 0.2,
+        "left": {
+          "isLeaf": false,
+          "featureIndex": 3,
+          "threshold": 0.3,
+          "left": {
+            "isLeaf": true,
+            "predictedClass": "defensive",
+            "classDistribution": {
+              "optimal_ev": 0,
+              "aggressive": 0,
+              "defensive": 9,
+              "balanced": 0
+            }
+          },
+          "right": {
+            "isLeaf": true,
+            "predictedClass": "balanced",
+            "classDistribution": {
+              "optimal_ev": 0,
+              "aggressive": 0,
+              "defensive": 0,
+              "balanced": 6
+            }
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "optimal_ev",
+          "classDistribution": {
+            "optimal_ev": 12,
+            "aggressive": 0,
+            "defensive": 0,
+            "balanced": 0
+          }
+        }
+      },
+      "right": {
+        "isLeaf": false,
+        "featureIndex": 0,
+        "threshold": 0.2,
+        "left": {
+          "isLeaf": true,
+          "predictedClass": "aggressive",
+          "classDistribution": {
+            "optimal_ev": 0,
+            "aggressive": 13,
+            "defensive": 0,
+            "balanced": 0
+          }
+        },
+        "right": {
+          "isLeaf": true,
+          "predictedClass": "optimal_ev",
+          "classDistribution": {
+            "optimal_ev": 1,
+            "aggressive": 0,
+            "defensive": 0,
+            "balanced": 0
+          }
         }
       }
     }

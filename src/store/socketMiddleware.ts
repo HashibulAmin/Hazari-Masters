@@ -166,6 +166,21 @@ export const socketMiddleware: Middleware = (store) => {
       });
     }
 
+    if (action.type === 'socket/inspectTable') {
+      const { tableId, tableName, userId, userName } = action.payload;
+      emitWithLag('inspect_table', {
+        tableId,
+        tableName,
+        userId,
+        userName,
+      });
+    }
+
+    if (action.type === 'socket/completeGame') {
+      const { tableId } = action.payload;
+      emitWithLag('complete_game', { tableId });
+    }
+
     if (action.type === 'socket/triggerDailyTrain') {
       emitWithLag('trigger_daily_train', {});
     }

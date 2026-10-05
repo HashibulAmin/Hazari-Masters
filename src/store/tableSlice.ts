@@ -59,7 +59,7 @@ export const tableSlice = createSlice({
     tableJoined: (
       state,
       action: PayloadAction<{
-        seatIndex: number;
+        seatIndex: number | null;
         tableState: TableState;
         localHand: InternalPlayerHand | null;
         pipelineStatus?: any;

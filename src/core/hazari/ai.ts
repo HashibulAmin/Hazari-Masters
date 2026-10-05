@@ -52,11 +52,27 @@ export const AGENT_PERSONAS: AgentPersona[] = [
   },
 ];
 
+export const DYNAMIC_AGENT_NAMES = [
+  'Kabir', 'Ananya', 'Tariq', 'Maya', 'Rahim', 'Fatima', 'Tanvir', 'Shirin',
+  'Farhan', 'Nusrat', 'Zubair', 'Meher', 'Arif', 'Samira', 'Imran', 'Ayesha',
+  'Sohan', 'Rubina', 'Kamal', 'Rokeya', 'Sultana', 'Masud', 'Jannat', 'Nasir',
+  'Reza', 'Tasnim', 'Shakib', 'Bilal', 'Laila', 'Mustafa', 'Raihan', 'Tahmid'
+];
+
+export function getRandomAgentName(seatIndex: number, usedNames?: Set<string>): string {
+  const available = usedNames ? DYNAMIC_AGENT_NAMES.filter((n) => !usedNames.has(n)) : DYNAMIC_AGENT_NAMES;
+  const pool = available.length > 0 ? available : DYNAMIC_AGENT_NAMES;
+  const picked = pool[Math.floor(Math.random() * pool.length)];
+  if (usedNames) usedNames.add(picked);
+  return `Agent ${picked} (#${seatIndex + 1})`;
+}
+
 export function createAgentPlayer(seatIndex: number, overrideName?: string): Player {
   const persona = AGENT_PERSONAS[seatIndex % AGENT_PERSONAS.length];
+  const dynamicName = overrideName || getRandomAgentName(seatIndex);
   return {
-    id: `agent_${seatIndex}_${Date.now()}`,
-    name: overrideName || persona.name,
+    id: `agent_${seatIndex}_${Math.random().toString(36).substring(2, 7)}`,
+    name: dynamicName,
     avatar: persona.avatar,
     seatIndex,
     isAgent: true,

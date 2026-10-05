@@ -2,5 +2,7 @@
   "name": "Hazari Masters",
   "description": "Real-time 4-player Hazari card game featuring intelligent AI agent substitution, dynamic seat swapping, dealing animations, and 1000-point championship rules.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

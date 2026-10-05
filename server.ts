@@ -112,6 +112,16 @@ app.post('/api/model/train-now', (req, res) => {
   });
 });
 
+app.post('/api/model/train-from-firebase', express.json({ limit: '10mb' }), (req, res) => {
+  const games = req.body?.games || [];
+  const trainResult = gamePipeline.trainOnFirebaseGames(games);
+  res.json({
+    success: true,
+    result: trainResult,
+    status: gamePipeline.getPipelineStatus(),
+  });
+});
+
 // Socket.io handlers
 io.on('connection', (socket: Socket) => {
   let currentTableId = 'main';
@@ -152,6 +162,40 @@ io.on('connection', (socket: Socket) => {
         });
       } else {
         socket.emit('table:join_error', { error: joinResult.error });
+      }
+    }
+  );
+
+  socket.on(
+    'inspect_table',
+    ({
+      tableId = 'main',
+      tableName,
+      userId,
+      userName,
+    }: {
+      tableId?: string;
+      tableName?: string;
+      userId: string;
+      userName: string;
+    }) => {
+      currentTableId = tableId;
+      currentUserId = userId;
+      socket.join(tableId);
+
+      const table = getOrCreateTable(tableId, tableName);
+      userSeatIndex = null;
+
+      socket.emit('table:joined', {
+        seatIndex: null,
+        tableState: table.state,
+        localHand: null,
+        pipelineStatus: gamePipeline.getPipelineStatus(),
+      });
+
+      // If game is in WAITING state, start deal so inspector can observe live gameplay
+      if (table.state.status === 'WAITING') {
+        table.startDeal();
       }
     }
   );
@@ -230,6 +274,14 @@ io.on('connection', (socket: Socket) => {
   socket.on('trigger_daily_train', () => {
     const res = gamePipeline.runDailyTraining();
     io.emit('pipeline:status_update', gamePipeline.getPipelineStatus());
+  });
+
+  socket.on('complete_game', ({ tableId = 'main' }: { tableId?: string }) => {
+    const table = tables.get(tableId);
+    if (table) {
+      table.completeGame(currentUserId || 'user');
+      io.to(tableId).emit('table:state_update', { tableState: table.getClientView(0).tableState });
+    }
   });
 
   socket.on('disconnect', () => {

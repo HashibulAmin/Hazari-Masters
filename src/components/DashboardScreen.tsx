@@ -8,6 +8,7 @@ import {
 } from '../firebase/tableService';
 import { CreateTableModal } from './CreateTableModal';
 import { CompletedGameModal } from './CompletedGameModal';
+import { CompletedGamesList } from './CompletedGamesList';
 import { AIModelModal } from './AIModelModal';
 import {
   Trophy,
@@ -15,6 +16,8 @@ import {
   Users,
   PlusCircle,
   Brain,
+  Cpu,
+  Eye,
   LogOut,
   ShieldCheck,
   Calendar,
@@ -27,12 +30,14 @@ import {
 interface DashboardScreenProps {
   currentUser: UserProfile;
   onJoinTable: (tableId: string, tableName: string) => void;
+  onInspectTable: (tableId: string, tableName: string) => void;
   onLogout: () => void;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   currentUser,
   onJoinTable,
+  onInspectTable,
   onLogout,
 }) => {
   const [activeTab, setActiveTab] = useState<'running' | 'completed'>('running');
@@ -41,6 +46,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCompletedGame, setSelectedCompletedGame] = useState<CompletedGameRecord | null>(null);
   const [showGlobalAIModal, setShowGlobalAIModal] = useState(false);
+  const [aiModalMode, setAiModalMode] = useState<'global' | 'user'>('global');
   const [searchFilter, setSearchFilter] = useState('');
 
   const isAdmin =
@@ -101,7 +107,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           {/* Requirement 5: Global AI Pipeline button (ONLY visible to admin) */}
           {isAdmin && (
             <button
-              onClick={() => setShowGlobalAIModal(true)}
+              onClick={() => {
+                setAiModalMode('global');
+                setShowGlobalAIModal(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950 border border-purple-500/50 hover:bg-purple-900 text-xs font-bold text-purple-300 transition shadow-md shadow-purple-950/50"
               title="Global AI Training Pipeline & Offline Model (Admin Only)"
             >
@@ -110,6 +119,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               <span className="text-[9px] bg-purple-500/30 px-1 rounded text-purple-200">Admin</span>
             </button>
           )}
+
+          {/* User Personal Model button (available to each user based on their completed games) */}
+          <button
+            onClick={() => {
+              setAiModalMode('user');
+              setShowGlobalAIModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950 border border-emerald-500/40 hover:bg-emerald-900 text-xs font-bold text-emerald-300 transition shadow-sm"
+            title="My Personal Offline AI Model"
+          >
+            <Cpu className="w-4 h-4 text-emerald-400" />
+            <span className="hidden md:inline">My AI Model</span>
+          </button>
 
           {/* User Profile Capsule */}
           <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
@@ -259,9 +281,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
-                          {table.status}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                            {table.status}
+                          </span>
+                          {table.humanPlayerCount === 0 && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40">
+                              🤖 4 AI Agents
+                            </span>
+                          )}
+                          {table.availableSeatsCount === 0 && table.humanPlayerCount > 0 && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold border border-rose-500/40">
+                              👥 Full Table
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] font-mono text-slate-400">
                           Round {table.currentRound || 1}
                         </span>
@@ -290,13 +324,31 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => onJoinTable(table.tableId, table.tableName)}
-                      className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg transition flex items-center justify-center gap-2 group-hover:scale-102"
-                    >
-                      <Play className="w-4 h-4 fill-slate-950" />
-                      <span>Take Seat &amp; Play</span>
-                    </button>
+                    {/* Dual Actions: Inspect Game or Take a Seat */}
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        onClick={() => onInspectTable(table.tableId, table.tableName)}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition border flex items-center justify-center gap-1.5 shadow ${
+                          table.availableSeatsCount === 0
+                            ? 'w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/50'
+                            : 'flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border-slate-700 hover:border-slate-500'
+                        }`}
+                        title="Visit table and see live gameplay"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{table.availableSeatsCount === 0 ? 'Spectate & Inspect Game' : 'Inspect Game'}</span>
+                      </button>
+
+                      {table.availableSeatsCount > 0 && (
+                        <button
+                          onClick={() => onJoinTable(table.tableId, table.tableName)}
+                          className="flex-1 py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg transition flex items-center justify-center gap-1.5 hover:scale-102"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-slate-950" />
+                          <span>Take Seat</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -306,59 +358,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
         {/* Tab 2: Completed Games Archive */}
         {activeTab === 'completed' && (
-          <div>
-            {filteredCompleted.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 rounded-3xl bg-slate-900/50 border border-slate-800 text-center gap-3">
-                <Trophy className="w-12 h-12 text-slate-600" />
-                <h3 className="text-base font-bold text-slate-200">No Completed Games Archived Yet</h3>
-                <p className="text-xs text-slate-400 max-w-sm">
-                  Matches that reach 1000 points and are closed will be archived here with complete round-by-round points breakdown.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredCompleted.map((game) => (
-                  <div
-                    key={game.gameId}
-                    onClick={() => setSelectedCompletedGame(game)}
-                    className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 shadow-xl transition-all flex flex-col justify-between gap-3 cursor-pointer group"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 flex items-center gap-1">
-                          <Award className="w-3 h-3 text-amber-400" />
-                          <span>Finished</span>
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {new Date(game.completedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      <h3 className="text-sm font-black text-slate-100 group-hover:text-amber-400 transition truncate">
-                        {game.tableName}
-                      </h3>
-
-                      <div className="mt-2.5 p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase font-semibold">Champion</span>
-                          <div className="font-bold text-amber-300 text-xs flex items-center gap-1">
-                            <span>👑 {game.winnerName}</span>
-                          </div>
-                        </div>
-                        <div className="text-right font-mono font-black text-sm text-emerald-400">
-                          {game.winnerCumulativeScore} pts
-                        </div>
-                      </div>
-                    </div>
-
-                    <button className="w-full py-2 rounded-xl bg-slate-800 group-hover:bg-amber-500 group-hover:text-slate-950 text-slate-300 text-xs font-bold transition flex items-center justify-center gap-1.5">
-                      <span>View Game Results Table</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <CompletedGamesList
+            searchQuery={searchFilter}
+            onSelectGame={(game) => setSelectedCompletedGame(game)}
+          />
         )}
       </main>
 
@@ -375,10 +378,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         onClose={() => setSelectedCompletedGame(null)}
       />
 
-      {/* Global AI Pipeline Modal (Admin Only) */}
+      {/* Global & Personal AI Pipeline Modal */}
       <AIModelModal
         isOpen={showGlobalAIModal}
         onClose={() => setShowGlobalAIModal(false)}
+        currentUser={currentUser}
+        initialTab={aiModalMode}
       />
     </div>
   );

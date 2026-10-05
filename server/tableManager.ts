@@ -11,7 +11,7 @@ import {
 } from '../src/core/hazari/types';
 import { shuffleAndDeal } from '../src/core/hazari/deck';
 import { evaluate3CardGroup, evaluateExtraGroup } from '../src/core/hazari/evaluator';
-import { arrangeAgentHand, createAgentPlayer } from '../src/core/hazari/ai';
+import { arrangeAgentHand, createAgentPlayer, getRandomAgentName } from '../src/core/hazari/ai';
 import { resolveTrick, checkGameWinner } from '../src/core/hazari/rules';
 import { findOptimalArrangement, validateArrangement, ArrangementStrategy } from '../src/core/hazari/arranger';
 
@@ -51,12 +51,13 @@ export class TableInstance {
     this.onStateChangeCallback = onStateChange;
     this.onGameFinishedCallback = onGameFinished;
 
-    // Initialize 4 seats with AI agents by default
+    // Initialize 4 seats with AI agents with dynamic random names
+    const usedNames = new Set<string>();
     const players: Player[] = [
-      createAgentPlayer(0, 'Agent Kabir'),
-      createAgentPlayer(1, 'Agent Ananya'),
-      createAgentPlayer(2, 'Agent Tariq'),
-      createAgentPlayer(3, 'Agent Maya'),
+      createAgentPlayer(0, getRandomAgentName(0, usedNames)),
+      createAgentPlayer(1, getRandomAgentName(1, usedNames)),
+      createAgentPlayer(2, getRandomAgentName(2, usedNames)),
+      createAgentPlayer(3, getRandomAgentName(3, usedNames)),
     ];
 
     this.state = {
@@ -206,7 +207,7 @@ export class TableInstance {
     if (seatIndex === -1) return false;
 
     const prev = this.state.players[seatIndex];
-    const agent = createAgentPlayer(seatIndex);
+    const agent = createAgentPlayer(seatIndex, getRandomAgentName(seatIndex));
     agent.cumulativeScore = prev.cumulativeScore;
     agent.roundScore = prev.roundScore;
     agent.isReady = prev.isReady;
@@ -459,9 +460,19 @@ export class TableInstance {
     if (winCheck.isGameOver && winCheck.winnerSeatIndex !== null) {
       this.state.status = 'GAME_OVER';
       this.state.gameWinnerSeat = winCheck.winnerSeatIndex;
+      if (!this.state.seatWins) this.state.seatWins = [0, 0, 0, 0];
+      this.state.seatWins[winCheck.winnerSeatIndex] = (this.state.seatWins[winCheck.winnerSeatIndex] || 0) + 1;
       const champion = this.state.players[winCheck.winnerSeatIndex];
       this.state.lastActionMessage = `🎉 GAME OVER! ${champion.name} reaches ${champion.cumulativeScore} points and wins the 1000-point Hazari Tournament!`;
       this.notify();
+
+      // Requirement 5: If all players are agents and an agent won, auto-complete the game!
+      const hasRealUser = this.state.players.some((p) => !p.isAgent);
+      if (!hasRealUser) {
+        setTimeout(() => {
+          this.completeGame('system_agent_bot');
+        }, 1500);
+      }
     } else {
       this.state.lastActionMessage = `Round ${this.state.currentRound} complete. Winner: ${this.state.players[bestRoundWinnerSeat].name} (+${maxRoundScore} pts). Next deal starting...`;
       this.notify();
@@ -471,6 +482,20 @@ export class TableInstance {
         this.startDeal();
       }, 4500);
     }
+  }
+
+  public completeGame(closedByUserId: string): { success: boolean } {
+    // Requirement 7: before completing a game the model would be train on the single game data
+    if (this.onGameFinishedCallback) {
+      const winnerSeat = this.state.gameWinnerSeat ?? 0;
+      this.onGameFinishedCallback(this.state, winnerSeat, this.playerHands, this.playerStrategies);
+    }
+
+    this.state.status = 'COMPLETED_CLOSED';
+    this.state.lastActionMessage = 'Game completed and closed. Archived to tournament history.';
+    this.notify();
+    this.savePersistedState();
+    return { success: true };
   }
 
   public shuffleTable() {
