@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "Hazari Masters",
+  "short_name": "Hazari",
+  "description": "Real-time 4-player Hazari card game with AI bots, dynamic seat swapping, and 1000 point tournament rules.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#022c22",
+  "theme_color": "#064e3b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

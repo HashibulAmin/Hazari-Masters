@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#065f46" />
+      <stop offset="60%" stop-color="#064e3b" />
+      <stop offset="100%" stop-color="#022c22" />
+    </radialGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Background felt disc -->
+  <circle cx="256" cy="256" r="248" fill="url(#bgGrad)" stroke="url(#goldGrad)" stroke-width="12" />
+  <circle cx="256" cy="256" r="236" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="6,6" opacity="0.4" />
+
+  <!-- Center Cards fan -->
+  <!-- Card 1 (Left spade) -->
+  <g transform="translate(180, 240) rotate(-16)" filter="url(#cardShadow)">
+    <rect x="-60" y="-90" width="120" height="180" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+    <text x="-44" y="-55" font-family="Cinzel, serif" font-weight="bold" font-size="28" fill="#0f172a">A</text>
+    <text x="-44" y="-30" font-size="22" fill="#0f172a">♠</text>
+    <text x="0" y="24" font-size="60" text-anchor="middle" fill="#0f172a">♠</text>
+  </g>
+
+  <!-- Card 2 (Right heart) -->
+  <g transform="translate(332, 240) rotate(16)" filter="url(#cardShadow)">
+    <rect x="-60" y="-90" width="120" height="180" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+    <text x="-44" y="-55" font-family="Cinzel, serif" font-weight="bold" font-size="28" fill="#dc2626">A</text>
+    <text x="-44" y="-30" font-size="22" fill="#dc2626">♥</text>
+    <text x="0" y="24" font-size="60" text-anchor="middle" fill="#dc2626">♥</text>
+  </g>
+
+  <!-- Card 3 (Center diamond) -->
+  <g transform="translate(256, 220)" filter="url(#cardShadow)">
+    <rect x="-65" y="-95" width="130" height="190" rx="12" fill="#ffffff" stroke="url(#goldGrad)" stroke-width="3"/>
+    <text x="-48" y="-58" font-family="Cinzel, serif" font-weight="bold" font-size="30" fill="#dc2626">K</text>
+    <text x="-48" y="-32" font-size="24" fill="#dc2626">♦</text>
+    <text x="0" y="28" font-size="68" text-anchor="middle" fill="#dc2626">♦</text>
+  </g>
+
+  <!-- 1000 Badge -->
+  <g transform="translate(256, 385)">
+    <rect x="-110" y="-26" width="220" height="52" rx="26" fill="#0f172a" stroke="url(#goldGrad)" stroke-width="3" filter="url(#cardShadow)"/>
+    <text x="0" y="10" font-family="Cinzel, serif" font-weight="900" font-size="28" letter-spacing="3" text-anchor="middle" fill="url(#goldGrad)">HAZARI 1000</text>
+  </g>
+</svg>

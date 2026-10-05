@@ -1,0 +1,334 @@
+import React, { useState } from 'react';
+import { useAppDispatch, useAppSelector } from '../store';
+import { optimisticArrangeHand, optimisticPlayTrick } from '../store/tableSlice';
+import { toggleAudio, setUserName } from '../store/networkSlice';
+import { HandGroups } from '../core/hazari/types';
+import { ArrangementStrategy } from '../core/hazari/arranger';
+import { PlayerSeat } from './PlayerSeat';
+import { TrickArena } from './TrickArena';
+import { ArrangementBoard } from './ArrangementBoard';
+import { ScoreboardModal } from './ScoreboardModal';
+import { NetworkTestModal } from './NetworkTestModal';
+import { RulesModal } from './RulesModal';
+import { GameWinModal } from './GameWinModal';
+import { AIModelModal } from './AIModelModal';
+import { PWAInstallButton } from './PWAInstallButton';
+import { OfflineIndicator } from './OfflineIndicator';
+import {
+  Trophy,
+  Activity,
+  BookOpen,
+  Volume2,
+  VolumeX,
+  Shuffle,
+  Brain,
+} from 'lucide-react';
+import { sounds } from '../utils/soundEffects';
+
+export const TableLayout: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { tableState, localHand, userSeatIndex } = useAppSelector(
+    (state) => state.table
+  );
+  const { audioEnabled, userName } = useAppSelector((state) => state.network);
+
+  const [showScoreboard, setShowScoreboard] = useState(false);
+  const [showNetworkTest, setShowNetworkTest] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [showAIModelModal, setShowAIModelModal] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(userName);
+
+  if (!tableState) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 gap-4">
+        <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
+        <p className="text-sm font-semibold text-slate-300">Connecting to Hazari Masters real-time table...</p>
+      </div>
+    );
+  }
+
+  // Relative seat mapping so local user is always South (bottom)
+  const mySeat = userSeatIndex ?? 0;
+  const westSeat = (mySeat + 1) % 4;
+  const northSeat = (mySeat + 2) % 4;
+  const eastSeat = (mySeat + 3) % 4;
+
+  const playerSouth = tableState.players[mySeat];
+  const playerWest = tableState.players[westSeat];
+  const playerNorth = tableState.players[northSeat];
+  const playerEast = tableState.players[eastSeat];
+
+  const isMyTurn = tableState.status === 'PLAYING_TRICK' && tableState.currentTurnSeat === mySeat;
+  const canPlayTrick = Boolean(isMyTurn && !playerSouth.hasPlayedCurrentTrick && localHand?.arrangedGroups);
+
+  const handleLockInArrangement = (groups: HandGroups, strategy: ArrangementStrategy) => {
+    // 1. Optimistic local update
+    dispatch(optimisticArrangeHand({ groups, strategy }));
+    // 2. Emit to server
+    dispatch({ type: 'socket/submitArrangement', payload: { groups, strategy } });
+  };
+
+  const handlePlayTrick = () => {
+    if (!canPlayTrick) return;
+    if (audioEnabled) sounds.playCardPlaySound();
+    // 1. Optimistic UI update
+    dispatch(optimisticPlayTrick());
+    // 2. Emit to server
+    dispatch({ type: 'socket/playTrick' });
+  };
+
+  const handleStartDeal = () => {
+    if (audioEnabled) sounds.playDealSound();
+    dispatch({ type: 'socket/startDeal' });
+  };
+
+  const handleShuffleTable = () => {
+    if (audioEnabled) sounds.playDealSound();
+    dispatch({ type: 'socket/shuffleTable' });
+  };
+
+  const handleTakeSeat = (seatIdx: number) => {
+    dispatch({ type: 'socket/takeSeat', payload: seatIdx });
+  };
+
+  const handleLeaveSeat = () => {
+    dispatch({ type: 'socket/leaveSeat' });
+  };
+
+  const handleSaveName = () => {
+    if (tempName.trim()) {
+      dispatch(setUserName(tempName.trim()));
+      setIsEditingName(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950">
+      <OfflineIndicator />
+
+      {/* Top Navbar */}
+      <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-emerald-950/60 px-4 py-2.5 flex items-center justify-between gap-3 shadow-lg z-20">
+        {/* Brand & Room Info */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 p-0.5 shadow-md flex items-center justify-center font-serif font-black text-slate-950 text-lg">
+            H
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-black tracking-wide text-slate-100 uppercase">Hazari Masters</h1>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                1000 PTS
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-slate-400">
+              <span>{tableState.tableName}</span>
+              <span>•</span>
+              <span className="font-mono text-emerald-400">Round {tableState.currentRound}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* User Profile Quick Edit */}
+        <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 border border-slate-800 px-3 py-1 rounded-xl text-xs">
+          {isEditingName ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                className="bg-slate-900 border border-emerald-500/50 rounded px-2 py-0.5 text-xs text-white outline-none w-28"
+                autoFocus
+              />
+              <button
+                onClick={handleSaveName}
+                className="text-[10px] bg-emerald-600 px-2 py-0.5 rounded font-bold"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setIsEditingName(true)}>
+              <span className="text-slate-400">Player:</span>
+              <span className="font-bold text-slate-200">{userName}</span>
+              <span className="text-[10px] text-slate-500 underline ml-1">Edit</span>
+            </div>
+          )}
+        </div>
+
+        {/* Global Action Buttons */}
+        <div className="flex items-center gap-2">
+          <PWAInstallButton />
+
+          <button
+            onClick={() => setShowAIModelModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900 text-xs font-semibold text-purple-300 border border-purple-500/40 transition shadow-sm"
+            title="Offline AI Model & Data Pipeline"
+          >
+            <Brain className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden md:inline">AI Pipeline</span>
+          </button>
+
+          <button
+            onClick={() => setShowScoreboard(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-amber-300 border border-amber-500/30 transition shadow-sm"
+            title="Scoreboard"
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Scores</span>
+          </button>
+
+          <button
+            onClick={() => setShowNetworkTest(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-emerald-400 border border-emerald-500/30 transition shadow-sm"
+            title="Network & State Recovery Test Suite"
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Network Tests</span>
+          </button>
+
+          <button
+            onClick={() => setShowRules(true)}
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+            title="Hazari Rules"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => dispatch(toggleAudio())}
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+            title={audioEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
+          >
+            {audioEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+          </button>
+
+          {tableState.status === 'GAME_OVER' && (
+            <button
+              onClick={handleShuffleTable}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg animate-pulse"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              <span>Shuffle Table</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Main Table Felt Arena */}
+      <main className="flex-1 w-full max-w-[96rem] mx-auto px-2 sm:px-4 py-1.5 sm:py-2 flex flex-col justify-between items-center gap-1.5 sm:gap-2">
+        {/* North Seat (Opponent Top) */}
+        <div className="w-full flex justify-center">
+          <PlayerSeat
+            player={playerNorth}
+            isLocalPlayer={userSeatIndex === northSeat}
+            isCurrentTurn={tableState.currentTurnSeat === northSeat}
+            isLead={tableState.leadSeat === northSeat}
+            isDealer={tableState.dealerSeat === northSeat}
+            status={tableState.status}
+            position="north"
+            onTakeSeat={playerNorth.isAgent ? () => handleTakeSeat(northSeat) : undefined}
+          />
+        </div>
+
+        {/* Center Row: West Seat + Wide Center Trick Arena + East Seat */}
+        <div className="w-full flex items-center justify-between gap-1.5 sm:gap-3">
+          {/* West Seat (Opponent Left) */}
+          <div className="w-36 sm:w-44 shrink-0 flex justify-start">
+            <PlayerSeat
+              player={playerWest}
+              isLocalPlayer={userSeatIndex === westSeat}
+              isCurrentTurn={tableState.currentTurnSeat === westSeat}
+              isLead={tableState.leadSeat === westSeat}
+              isDealer={tableState.dealerSeat === westSeat}
+              status={tableState.status}
+              position="west"
+              onTakeSeat={playerWest.isAgent ? () => handleTakeSeat(westSeat) : undefined}
+            />
+          </div>
+
+          {/* Wide Center Arena */}
+          <div className="flex-1 flex justify-center min-w-0 max-w-5xl px-0.5 sm:px-2">
+            <TrickArena
+              tableState={tableState}
+              onStartDeal={handleStartDeal}
+              canStartDeal={tableState.status === 'WAITING'}
+            />
+          </div>
+
+          {/* East Seat (Opponent Right) */}
+          <div className="w-36 sm:w-44 shrink-0 flex justify-end">
+            <PlayerSeat
+              player={playerEast}
+              isLocalPlayer={userSeatIndex === eastSeat}
+              isCurrentTurn={tableState.currentTurnSeat === eastSeat}
+              isLead={tableState.leadSeat === eastSeat}
+              isDealer={tableState.dealerSeat === eastSeat}
+              status={tableState.status}
+              position="east"
+              onTakeSeat={playerEast.isAgent ? () => handleTakeSeat(eastSeat) : undefined}
+            />
+          </div>
+        </div>
+
+        {/* South Player Seat (Local Player Pod) */}
+        <div className="w-full flex flex-col items-center gap-1.5 sm:gap-2">
+          <PlayerSeat
+            player={playerSouth}
+            isLocalPlayer={userSeatIndex === mySeat}
+            isCurrentTurn={tableState.currentTurnSeat === mySeat}
+            isLead={tableState.leadSeat === mySeat}
+            isDealer={tableState.dealerSeat === mySeat}
+            status={tableState.status}
+            position="south"
+            onTakeSeat={playerSouth.isAgent ? () => handleTakeSeat(mySeat) : undefined}
+            onLeaveSeat={userSeatIndex === mySeat ? handleLeaveSeat : undefined}
+            canPlayNow={canPlayTrick}
+            onPlayTrick={handlePlayTrick}
+          />
+
+          {/* Arrangement Board when player is organizing their 13 cards */}
+          {tableState.status === 'ARRANGING' && localHand && localHand.dealtCards && (
+            <div className="w-full max-w-5xl animate-fade-in">
+              <ArrangementBoard
+                cards={localHand.dealtCards}
+                isLockedIn={localHand.isReady}
+                onLockIn={handleLockInArrangement}
+                audioEnabled={audioEnabled}
+              />
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Modals */}
+      <ScoreboardModal
+        isOpen={showScoreboard}
+        onClose={() => setShowScoreboard(false)}
+        tableState={tableState}
+        userSeatIndex={userSeatIndex}
+      />
+
+      <NetworkTestModal
+        isOpen={showNetworkTest}
+        onClose={() => setShowNetworkTest(false)}
+      />
+
+      <RulesModal
+        isOpen={showRules}
+        onClose={() => setShowRules(false)}
+      />
+
+      <AIModelModal
+        isOpen={showAIModelModal}
+        onClose={() => setShowAIModelModal(false)}
+      />
+
+      <GameWinModal
+        tableState={tableState}
+        onShuffleTable={handleShuffleTable}
+        audioEnabled={audioEnabled}
+      />
+    </div>
+  );
+};
