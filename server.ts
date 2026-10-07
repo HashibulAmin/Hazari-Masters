@@ -122,12 +122,12 @@ app.post('/api/model/train-from-firebase', express.json({ limit: '10mb' }), (req
   });
 });
 
-// Periodic abandonment monitor: checks every 30 seconds for tables inactive > 30 minutes
+// Periodic abandonment monitor: checks every 5 mins for tables inactive > 30 minutes
 setInterval(() => {
   tables.forEach((table) => {
     table.checkAbandonedGameTimeout(30 * 60 * 1000);
   });
-}, 30 * 1000);
+}, 5 * 60 * 1000);
 
 app.post('/api/table/:tableId/check-abandonment', (req, res) => {
   const table = tables.get(req.params.tableId);
