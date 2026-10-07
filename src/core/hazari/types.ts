@@ -73,6 +73,7 @@ export interface Player {
   roundScore: number;
   isReady: boolean; // Locked in "Up"
   hasPlayedCurrentTrick: boolean;
+  disconnectedAt?: number | null;
   reconnectGraceExpiresAt?: number | null;
 }
 
@@ -101,6 +102,13 @@ export interface TableState {
   targetScore: number; // 1000
   gameWinnerSeat: number | null;
   seatWins?: number[]; // count of tournament game wins across table shuffles
+  trainingSamples?: {
+    features: number[];
+    winningStrategy: string;
+    score: number;
+    playerId?: string;
+    playerName?: string;
+  }[];
   lastActionMessage: string;
   updatedAt: number;
 }

@@ -1,16 +1,43 @@
-import React from 'react';
-import { CompletedGameRecord } from '../firebase/tableService';
-import { Trophy, ArrowLeft, Calendar, Award } from 'lucide-react';
+import React, { useState } from 'react';
+import { CompletedGameRecord, trainUserModelOnSingleGame } from '../firebase/tableService';
+import { UserProfile } from '../firebase/authService';
+import { Trophy, ArrowLeft, Calendar, Award, Cpu, Sparkles, CheckCircle2, RefreshCw, Film } from 'lucide-react';
 
 interface CompletedGameModalProps {
   game: CompletedGameRecord | null;
   onClose: () => void;
+  currentUser?: UserProfile | null;
+  onWatchReplay?: (game: CompletedGameRecord) => void;
 }
 
-export const CompletedGameModal: React.FC<CompletedGameModalProps> = ({ game, onClose }) => {
+export const CompletedGameModal: React.FC<CompletedGameModalProps> = ({
+  game,
+  onClose,
+  currentUser,
+  onWatchReplay,
+}) => {
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainStatus, setTrainStatus] = useState<string | null>(null);
+
   if (!game) return null;
 
   const dateStr = new Date(game.completedAt).toLocaleString();
+
+  const handleTrainOnThisGame = async () => {
+    if (!currentUser) return;
+    setIsTraining(true);
+    setTrainStatus(null);
+    try {
+      const res = await trainUserModelOnSingleGame(game, currentUser.uid, currentUser.username);
+      setTrainStatus(
+        `Local model successfully trained on this game! Accuracy: ${(res.accuracy * 100).toFixed(1)}% (${res.sampleCount} samples). Saved to your offline model.`
+      );
+    } catch (err: any) {
+      setTrainStatus(`Training error: ${err.message}`);
+    } finally {
+      setIsTraining(false);
+    }
+  };
 
   return (
     <div
@@ -160,10 +187,46 @@ export const CompletedGameModal: React.FC<CompletedGameModalProps> = ({ game, on
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/70 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+            {onWatchReplay && (
+              <button
+                onClick={() => onWatchReplay(game)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg transition"
+                title="Watch sequence of card plays and analyze strategies"
+              >
+                <Film className="w-3.5 h-3.5 text-purple-200" />
+                <span>Watch Match Replay</span>
+              </button>
+            )}
+
+            {currentUser && (
+              <>
+                <button
+                  onClick={handleTrainOnThisGame}
+                  disabled={isTraining}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg transition"
+                  title="Train your offline personal AI model on this match session"
+                >
+                  {isTraining ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Cpu className="w-3.5 h-3.5 text-emerald-200" />
+                  )}
+                  <span>{isTraining ? 'Training Local Model...' : 'Train My Local AI on this Game'}</span>
+                </button>
+                {trainStatus && (
+                  <span className="text-[11px] text-emerald-400 font-medium">
+                    {trainStatus}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition"
+            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition ml-auto"
           >
             Close Archive
           </button>

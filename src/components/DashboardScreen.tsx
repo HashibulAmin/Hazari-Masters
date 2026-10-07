@@ -10,6 +10,9 @@ import { CreateTableModal } from './CreateTableModal';
 import { CompletedGameModal } from './CompletedGameModal';
 import { CompletedGamesList } from './CompletedGamesList';
 import { AIModelModal } from './AIModelModal';
+import { PlayerStatisticsView } from './PlayerStatisticsView';
+import { DailyMissionsCard } from './DailyMissionsCard';
+import { MatchReplayModal } from './MatchReplayModal';
 import {
   Trophy,
   Play,
@@ -25,6 +28,7 @@ import {
   Award,
   Sparkles,
   Search,
+  BarChart3,
 } from 'lucide-react';
 
 interface DashboardScreenProps {
@@ -40,11 +44,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onInspectTable,
   onLogout,
 }) => {
-  const [activeTab, setActiveTab] = useState<'running' | 'completed'>('running');
+  const [activeTab, setActiveTab] = useState<'running' | 'completed' | 'stats'>('running');
   const [runningTables, setRunningTables] = useState<FirestoreTableSummary[]>([]);
   const [completedGames, setCompletedGames] = useState<CompletedGameRecord[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCompletedGame, setSelectedCompletedGame] = useState<CompletedGameRecord | null>(null);
+  const [replayGame, setReplayGame] = useState<CompletedGameRecord | null>(null);
   const [showGlobalAIModal, setShowGlobalAIModal] = useState(false);
   const [aiModalMode, setAiModalMode] = useState<'global' | 'user'>('global');
   const [searchFilter, setSearchFilter] = useState('');
@@ -198,6 +203,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </div>
         </div>
 
+        {/* Daily Missions Component */}
+        <DailyMissionsCard userId={currentUser.uid} userName={currentUser.username} />
+
         {/* Tab Selector & Search Filter */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
@@ -237,6 +245,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               >
                 {completedGames.length}
               </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'stats'
+                  ? 'bg-sky-500 text-slate-950 shadow-md'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Player Statistics</span>
             </button>
           </div>
 
@@ -361,7 +381,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <CompletedGamesList
             searchQuery={searchFilter}
             onSelectGame={(game) => setSelectedCompletedGame(game)}
+            onWatchReplay={(game) => setReplayGame(game)}
           />
+        )}
+
+        {/* Tab 3: Player Statistics Analytics View */}
+        {activeTab === 'stats' && (
+          <PlayerStatisticsView currentUser={currentUser} />
         )}
       </main>
 
@@ -376,6 +402,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       <CompletedGameModal
         game={selectedCompletedGame}
         onClose={() => setSelectedCompletedGame(null)}
+        currentUser={currentUser}
+        onWatchReplay={(game) => {
+          setSelectedCompletedGame(null);
+          setReplayGame(game);
+        }}
       />
 
       {/* Global & Personal AI Pipeline Modal */}
@@ -384,6 +415,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         onClose={() => setShowGlobalAIModal(false)}
         currentUser={currentUser}
         initialTab={aiModalMode}
+      />
+
+      {/* Match Replay Viewer Modal */}
+      <MatchReplayModal
+        isOpen={Boolean(replayGame)}
+        onClose={() => setReplayGame(null)}
+        gameRecord={replayGame}
       />
     </div>
   );

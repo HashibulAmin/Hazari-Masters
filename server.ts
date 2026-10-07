@@ -122,6 +122,21 @@ app.post('/api/model/train-from-firebase', express.json({ limit: '10mb' }), (req
   });
 });
 
+// Periodic abandonment monitor: checks every 30 seconds for tables inactive > 30 minutes
+setInterval(() => {
+  tables.forEach((table) => {
+    table.checkAbandonedGameTimeout(30 * 60 * 1000);
+  });
+}, 30 * 1000);
+
+app.post('/api/table/:tableId/check-abandonment', (req, res) => {
+  const table = tables.get(req.params.tableId);
+  if (!table) return res.status(404).json({ error: 'Table not found' });
+  const timeoutMs = typeof req.body?.timeoutMs === 'number' ? req.body.timeoutMs : 30 * 60 * 1000;
+  const result = table.checkAbandonedGameTimeout(timeoutMs);
+  res.json({ success: true, result, state: table.state });
+});
+
 // Socket.io handlers
 io.on('connection', (socket: Socket) => {
   let currentTableId = 'main';
@@ -295,11 +310,10 @@ io.on('connection', (socket: Socket) => {
 async function startServer() {
   const isProduction = process.env.NODE_ENV === 'production';
   if (!isProduction) {
-    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: isHmrDisabled ? false : { server },
+        hmr: false,
       },
       appType: 'spa',
     });

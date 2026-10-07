@@ -8,7 +8,14 @@
     <meta property="og:title" content="Hazari Masters" />
     <meta property="og:description" content="Real-time 4-player Hazari card game featuring intelligent AI agent substitution, dynamic seat swapping, dealing animations, and 1000-point championship rules." />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-cover.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="675" />
+    <meta property="og:site_name" content="Hazari Masters" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Hazari Masters – 1000-Point Card Championship" />
+    <meta name="twitter:description" content="Play Hazari online with real players and intelligent AI bots. Experience 13-card hand arrangements, dynamic trick takes, and 1000-point championships." />
+    <meta name="twitter:image" content="/og-cover.jpg" />
     <meta name="theme-color" content="#064e3b" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,9 +24,44 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Hazari Masters",
+      "applicationCategory": "GameApplication",
+      "genre": "Card Game",
+      "operatingSystem": "All",
+      "description": "Real-time 4-player Hazari card championship with dynamic AI substitution, offline machine learning models, and 1000-point tournament rules.",
+      "image": "/og-cover.jpg",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script>
+      // Gracefully suppress Vite dev client HMR WebSocket errors in AI Studio iframe environment
+      window.addEventListener('error', function(event) {
+        var msg = event && event.message ? String(event.message) : '';
+        if (msg.includes('WebSocket') || msg.includes('@vite/client') || msg.includes('createWebSocketModuleRunnerTransport')) {
+          event.preventDefault();
+          event.stopPropagation();
+          return true;
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event && event.reason ? String(event.reason) : '';
+        if (reason.includes('WebSocket') || reason.includes('@vite/client') || reason.includes('createWebSocketModuleRunnerTransport')) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      });
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased select-none overflow-x-hidden">
     <div id="root"></div>

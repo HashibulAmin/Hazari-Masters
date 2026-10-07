@@ -14,6 +14,7 @@ import { evaluate3CardGroup, evaluateExtraGroup } from '../src/core/hazari/evalu
 import { arrangeAgentHand, createAgentPlayer, getRandomAgentName } from '../src/core/hazari/ai';
 import { resolveTrick, checkGameWinner } from '../src/core/hazari/rules';
 import { findOptimalArrangement, validateArrangement, ArrangementStrategy } from '../src/core/hazari/arranger';
+import { extractFeatures } from '../src/core/hazari/features';
 
 export interface InternalPlayerHand {
   dealtCards: Card[];
@@ -128,6 +129,7 @@ export class TableInstance {
       const p = this.state.players[existingIndex];
       p.connected = true;
       p.socketId = socketId;
+      p.disconnectedAt = null;
       p.reconnectGraceExpiresAt = null;
       this.state.lastActionMessage = `${userName} reconnected to Seat ${existingIndex + 1}.`;
       this.notify();
@@ -182,6 +184,7 @@ export class TableInstance {
 
     const player = this.state.players[seatIndex];
     player.connected = false;
+    player.disconnectedAt = Date.now();
     player.reconnectGraceExpiresAt = Date.now() + 15000;
 
     this.state.lastActionMessage = `${player.name} disconnected. AI Agent taking over to prevent game stall.`;
@@ -462,6 +465,21 @@ export class TableInstance {
       this.state.gameWinnerSeat = winCheck.winnerSeatIndex;
       if (!this.state.seatWins) this.state.seatWins = [0, 0, 0, 0];
       this.state.seatWins[winCheck.winnerSeatIndex] = (this.state.seatWins[winCheck.winnerSeatIndex] || 0) + 1;
+
+      // Extract real normalized 10-feature vectors for all players for AI training
+      this.state.trainingSamples = this.state.players.map((p, idx) => {
+        const hand = this.playerHands.get(idx);
+        const feat = hand ? extractFeatures(hand.dealtCards).normalizedVector : [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+        const strat = this.playerStrategies.get(idx) || (idx === winCheck.winnerSeatIndex ? 'optimal_ev' : 'balanced');
+        return {
+          features: feat,
+          winningStrategy: strat,
+          score: p.cumulativeScore,
+          playerId: p.id,
+          playerName: p.name,
+        };
+      });
+
       const champion = this.state.players[winCheck.winnerSeatIndex];
       this.state.lastActionMessage = `🎉 GAME OVER! ${champion.name} reaches ${champion.cumulativeScore} points and wins the 1000-point Hazari Tournament!`;
       this.notify();
@@ -516,5 +534,82 @@ export class TableInstance {
       tableState: this.state,
       localHand: this.playerHands.get(seatIndex) || null,
     };
+  }
+
+  /**
+   * Requirement: When the last user left for more than 30 min, replace seat with an agent
+   * and complete gameplay with all agents, then declare winner and auto-complete after round.
+   * If more than 1 user and all are out for > 30 min, replace all of them with agents and auto-complete.
+   */
+  public checkAbandonedGameTimeout(timeoutMs: number = 30 * 60 * 1000): {
+    timedOut: boolean;
+    replacedSeats: number[];
+  } {
+    if (this.state.status === 'COMPLETED_CLOSED') {
+      return { timedOut: false, replacedSeats: [] };
+    }
+
+    const now = Date.now();
+    const replacedSeats: number[] = [];
+
+    // Find human players who are disconnected for >= timeoutMs
+    this.state.players.forEach((player, seatIndex) => {
+      if (!player.isAgent) {
+        const isDisconnectedTimeout =
+          !player.connected &&
+          player.disconnectedAt &&
+          now - player.disconnectedAt >= timeoutMs;
+
+        if (isDisconnectedTimeout) {
+          const agent = createAgentPlayer(seatIndex, getRandomAgentName(seatIndex));
+          agent.cumulativeScore = player.cumulativeScore;
+          agent.roundScore = player.roundScore;
+          agent.isReady = player.isReady;
+          agent.hasPlayedCurrentTrick = player.hasPlayedCurrentTrick;
+
+          this.state.players[seatIndex] = agent;
+          replacedSeats.push(seatIndex);
+          this.state.lastActionMessage = `Seat ${seatIndex + 1} (${player.name}) inactive > 30m. Replaced by ${agent.name}.`;
+        }
+      }
+    });
+
+    if (replacedSeats.length > 0) {
+      this.notify();
+      this.savePersistedState();
+    }
+
+    // Check if table now has ALL 4 players as AI agents
+    const remainingHumans = this.state.players.filter((p) => !p.isAgent);
+    if (remainingHumans.length === 0 && replacedSeats.length > 0) {
+      this.fastForwardAgentGameToCompletion();
+      return { timedOut: true, replacedSeats };
+    }
+
+    return { timedOut: false, replacedSeats };
+  }
+
+  public fastForwardAgentGameToCompletion() {
+    this.state.lastActionMessage = 'All players inactive for > 30 min. Auto-completing tournament with AI agents...';
+    this.notify();
+
+    // Auto arrange hands if in ARRANGING state
+    if (this.state.status === 'ARRANGING') {
+      this.state.players.forEach((p, seat) => {
+        const hand = this.playerHands.get(seat);
+        if (hand && !hand.isReady) {
+          const agentArr = arrangeAgentHand(hand.dealtCards, seat);
+          hand.arrangedGroups = agentArr.groups;
+          hand.isReady = true;
+          p.isReady = true;
+          this.playerStrategies.set(seat, agentArr.strategyUsed);
+        }
+      });
+      this.checkAllArranged();
+    } else if (this.state.status === 'PLAYING_TRICK') {
+      setTimeout(() => this.executeAgentPlay(this.state.currentTurnSeat), 500);
+    } else if (this.state.status === 'WAITING' || this.state.status === 'ROUND_SUMMARY') {
+      this.startDeal();
+    }
   }
 }

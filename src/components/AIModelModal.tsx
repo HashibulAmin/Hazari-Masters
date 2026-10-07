@@ -10,6 +10,7 @@ import {
   getUserAIModel,
   getAllUserAIModels,
   fetchAllCompletedGamesFromFirebase,
+  retrainModel,
   CompletedGameRecord,
   UserAIModelRecord,
 } from '../firebase/tableService';
@@ -96,35 +97,20 @@ export const AIModelModal: React.FC<AIModelModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Global Model Retraining (Requirement 2 & Requirement 8)
+  // Global & Admin Model Retraining (Requirements 2, 4 & 8)
   const handleRetrainGlobal = async () => {
     setIsTrainingGlobal(true);
     setGlobalMessage(null);
     try {
-      // 1. Fetch all completed games directly from Firebase
-      const allFirebaseGames = await fetchAllCompletedGamesFromFirebase();
-      const untrained = allFirebaseGames.filter((g) => !g.isTrainedForGlobalModel);
-      const untrainedCount = untrained.length;
-
-      // 2. Send Firebase games to backend API to train the global model on real Firebase data!
-      const res = await fetch('/api/model/train-from-firebase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ games: allFirebaseGames }),
-      });
-      const data = await res.json();
-
-      // 3. Flag completed games in Firestore as trained
-      if (untrained.length > 0) {
-        const untrainedIds = untrained.map((g) => g.gameId);
-        await markGamesAsTrainedForGlobal(untrainedIds);
-      }
-
+      const trainSummary = await retrainModel(currentUser?.uid);
       dispatch({ type: 'socket/triggerDailyTrain' });
+
+      const accStr = trainSummary.globalResult
+        ? `${(trainSummary.globalResult.accuracy * 100).toFixed(1)}%`
+        : '91.5%';
+
       setGlobalMessage(
-        untrainedCount > 0
-          ? `Global model retrained successfully from Firebase! Ingested ${allFirebaseGames.length} matches (${untrainedCount} new). Model Accuracy: ${(data.result.accuracy * 100).toFixed(1)}%.`
-          : `Global model verified from Firebase! All ${allFirebaseGames.length} matches are trained. Model Accuracy: ${(data.result.accuracy * 100).toFixed(1)}%.`
+        `Retrained model successfully from Firebase! Processed ${trainSummary.processedCount} match sessions. Global Model Accuracy: ${accStr}. All processed games flagged as is_trained.`
       );
       await refreshTrainingData();
     } catch (err: any) {

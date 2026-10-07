@@ -27,7 +27,8 @@ import {
   Eye,
 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
-import { syncTableToFirestore, archiveCompletedGame } from '../firebase/tableService';
+import { syncTableToFirestore, archiveCompletedGame, recordGameSessionOnWinner } from '../firebase/tableService';
+import { advanceMissionProgress } from '../services/dailyMissionsService';
 
 interface TableLayoutProps {
   onBackToDashboard?: () => void;
@@ -54,6 +55,43 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
     }
   }, [tableState, userId, userName]);
 
+  // Automatically record each match session on Firebase as soon as a game has a winner!
+  // Supports multiple sessions played inside a single table/game with separate round and winner tracking
+  const lastSavedSessionKeyRef = React.useRef<string>('');
+  React.useEffect(() => {
+    if (tableState && tableState.status === 'GAME_OVER' && tableState.gameWinnerSeat !== null) {
+      const totalWinsCount = tableState.seatWins ? tableState.seatWins.reduce((a, b) => a + b, 0) : 1;
+      const sessionKey = `${tableState.tableId}_round${tableState.currentRound}_win${tableState.gameWinnerSeat}_wins${totalWinsCount}`;
+      if (lastSavedSessionKeyRef.current !== sessionKey) {
+        lastSavedSessionKeyRef.current = sessionKey;
+        recordGameSessionOnWinner(tableState, userId, {
+          sessionNumber: totalWinsCount > 0 ? totalWinsCount : 1,
+          winnerSeat: tableState.gameWinnerSeat,
+        }).catch((err) => console.warn('Auto-save winner session notice:', err));
+
+        // Advance daily missions progress
+        advanceMissionProgress(userId, 'PLAY_MATCHES', 1).catch(() => {});
+        if (userSeatIndex !== null && tableState.gameWinnerSeat === userSeatIndex) {
+          advanceMissionProgress(userId, 'WIN_ROUNDS', 1).catch(() => {});
+          advanceMissionProgress(userId, 'AGENT_CHALLENGER', 1).catch(() => {});
+        }
+      }
+    }
+  }, [tableState, userId, userSeatIndex]);
+
+  // Track player cumulative score for Score Points mission
+  const lastScoreRef = React.useRef<number>(0);
+  React.useEffect(() => {
+    if (userSeatIndex !== null && tableState) {
+      const myPlayer = tableState.players[userSeatIndex];
+      if (myPlayer && myPlayer.cumulativeScore > lastScoreRef.current) {
+        const diff = myPlayer.cumulativeScore - lastScoreRef.current;
+        lastScoreRef.current = myPlayer.cumulativeScore;
+        advanceMissionProgress(userId, 'SCORE_POINTS', diff).catch(() => {});
+      }
+    }
+  }, [tableState, userSeatIndex, userId]);
+
   if (!tableState) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 gap-4">
@@ -78,6 +116,14 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
   const canPlayTrick = Boolean(isMyTurn && !playerSouth.hasPlayedCurrentTrick && localHand?.arrangedGroups);
 
   const handleLockInArrangement = (groups: HandGroups, strategy: ArrangementStrategy) => {
+    // Check if player has any Trio in their arrangement for Daily Mission
+    const hasTrio = [groups.group1, groups.group2, groups.group3].some(
+      (grp) => grp && grp.length === 3 && grp[0].rank === grp[1].rank && grp[1].rank === grp[2].rank
+    );
+    if (hasTrio) {
+      advanceMissionProgress(userId, 'TRIO_MASTER', 1).catch(() => {});
+    }
+
     // 1. Optimistic local update
     dispatch(optimisticArrangeHand({ groups, strategy }));
     // 2. Emit to server

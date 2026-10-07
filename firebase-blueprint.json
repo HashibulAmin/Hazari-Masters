@@ -56,7 +56,13 @@
         "winnerCumulativeScore": { "type": "number" },
         "roundsHistory": { "type": "array" },
         "players": { "type": "array" },
-        "closedBy": { "type": "array" }
+        "closedBy": { "type": "array" },
+        "sessionId": { "type": "string", "maxLength": 128 },
+        "sessionNumber": { "type": "number" },
+        "is_trained": { "type": "boolean" },
+        "isTrainedForGlobalModel": { "type": "boolean" },
+        "trainedForUserIds": { "type": "array" },
+        "trainingSamples": { "type": "array" }
       },
       "required": ["gameId", "tableId", "winnerId", "winnerName", "completedAt"]
     },
@@ -95,6 +101,19 @@
         "trainedGameIds": { "type": "array" }
       },
       "required": ["userId", "trainedAt", "validationAccuracy"]
+    },
+    "DailyMissionsRecord": {
+      "title": "DailyMissionsRecord",
+      "description": "Daily randomized gameplay objectives and completion progress",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "dateKey": { "type": "string", "maxLength": 32 },
+        "missions": { "type": "array" },
+        "totalCompleted": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "dateKey", "missions"]
     }
   },
   "firestore": {
@@ -117,6 +136,10 @@
     "/user_models/{userId}": {
       "schema": { "$ref": "UserAIModel" },
       "description": "User specific offline AI models"
+    },
+    "/user_missions/{missionId}": {
+      "schema": { "$ref": "DailyMissionsRecord" },
+      "description": "User daily gameplay missions progress"
     }
   }
 }
