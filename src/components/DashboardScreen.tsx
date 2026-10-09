@@ -11,10 +11,14 @@ import { CompletedGameModal } from './CompletedGameModal';
 import { CompletedGamesList } from './CompletedGamesList';
 import { AIModelModal } from './AIModelModal';
 import { PlayerStatisticsView } from './PlayerStatisticsView';
+import { TournamentHistoryView } from './TournamentHistoryView';
 import { DailyMissionsCard } from './DailyMissionsCard';
+import { DailyChallengesCard } from './DailyChallengesCard';
 import { MatchReplayModal } from './MatchReplayModal';
+import { GlobalLeaderboard } from './GlobalLeaderboard';
 import {
   Trophy,
+  Crown,
   Play,
   Users,
   PlusCircle,
@@ -44,7 +48,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onInspectTable,
   onLogout,
 }) => {
-  const [activeTab, setActiveTab] = useState<'running' | 'completed' | 'stats'>('running');
+  const [activeTab, setActiveTab] = useState<'running' | 'completed' | 'history' | 'stats' | 'leaderboard'>('running');
   const [runningTables, setRunningTables] = useState<FirestoreTableSummary[]>([]);
   const [completedGames, setCompletedGames] = useState<CompletedGameRecord[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -192,7 +196,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             </p>
           </div>
 
-          <div className="relative z-10 shrink-0">
+          <div className="relative z-10 shrink-0 flex items-center gap-2.5">
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-400 font-bold text-xs uppercase tracking-wider border border-amber-500/40 shadow-lg transition"
+            >
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span>Leaderboard</span>
+            </button>
             <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-amber-400 hover:from-emerald-400 hover:to-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl hover:scale-105 active:scale-95 transition"
@@ -203,12 +214,37 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </div>
         </div>
 
-        {/* Daily Missions Component */}
+        {/* Daily Card-Arrangement Challenges Feature */}
+        <DailyChallengesCard
+          userId={currentUser.uid}
+          userName={currentUser.username}
+          onPlayNow={() => {
+            if (runningTables.length > 0) {
+              onJoinTable(runningTables[0].tableId, runningTables[0].tableName);
+            } else {
+              setShowCreateModal(true);
+            }
+          }}
+        />
+
+        {/* Daily Tournament Missions Component */}
         <DailyMissionsCard userId={currentUser.uid} userName={currentUser.username} />
 
         {/* Tab Selector & Search Filter */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'leaderboard'
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span>Global Leaderboard</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('running')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
@@ -248,6 +284,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             </button>
 
             <button
+              onClick={() => setActiveTab('history')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'history'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              <span>Tournament History</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('stats')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'stats'
@@ -256,7 +304,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               }`}
             >
               <BarChart3 className="w-4 h-4" />
-              <span>Player Statistics</span>
+              <span>Victory Analytics</span>
             </button>
           </div>
 
@@ -385,9 +433,23 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           />
         )}
 
-        {/* Tab 3: Player Statistics Analytics View */}
+        {/* Tab 3: Tournament History View */}
+        {activeTab === 'history' && (
+          <TournamentHistoryView
+            currentUser={currentUser}
+            onSelectGame={(game) => setSelectedCompletedGame(game)}
+            onWatchReplay={(game) => setReplayGame(game)}
+          />
+        )}
+
+        {/* Tab 4: Player Statistics Analytics View */}
         {activeTab === 'stats' && (
           <PlayerStatisticsView currentUser={currentUser} />
+        )}
+
+        {/* Tab 5: Global Leaderboard View */}
+        {activeTab === 'leaderboard' && (
+          <GlobalLeaderboard currentUser={currentUser} />
         )}
       </main>
 

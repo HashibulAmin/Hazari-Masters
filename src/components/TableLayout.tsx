@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../store';
-import { optimisticArrangeHand, optimisticPlayTrick } from '../store/tableSlice';
+import { optimisticArrangeHand, optimisticPlayTrick, toggleChatVisibility } from '../store/tableSlice';
 import { toggleAudio, setUserName } from '../store/networkSlice';
 import { HandGroups } from '../core/hazari/types';
 import { ArrangementStrategy } from '../core/hazari/arranger';
@@ -14,6 +14,7 @@ import { GameWinModal } from './GameWinModal';
 import { AIModelModal } from './AIModelModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
+import { TableChat } from './TableChat';
 import {
   Trophy,
   Activity,
@@ -25,10 +26,13 @@ import {
   ArrowLeft,
   CheckCircle2,
   Eye,
+  MessageSquare,
+  Sparkles,
 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
 import { syncTableToFirestore, archiveCompletedGame, recordGameSessionOnWinner } from '../firebase/tableService';
 import { advanceMissionProgress } from '../services/dailyMissionsService';
+import { advanceArrangementGoals } from '../services/dailyChallengesService';
 
 interface TableLayoutProps {
   onBackToDashboard?: () => void;
@@ -36,7 +40,7 @@ interface TableLayoutProps {
 
 export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) => {
   const dispatch = useAppDispatch();
-  const { tableState, localHand, userSeatIndex } = useAppSelector(
+  const { tableState, localHand, userSeatIndex, isChatVisible, unreadChatCount } = useAppSelector(
     (state) => state.table
   );
   const { audioEnabled, userName, userId } = useAppSelector((state) => state.network);
@@ -47,6 +51,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
   const [showAIModelModal, setShowAIModelModal] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName);
+  const [challengeNotification, setChallengeNotification] = useState<string | null>(null);
 
   // Sync active table state to Firestore
   React.useEffect(() => {
@@ -123,6 +128,17 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
     if (hasTrio) {
       advanceMissionProgress(userId, 'TRIO_MASTER', 1).catch(() => {});
     }
+
+    // Check Daily Card-Arrangement Challenges
+    advanceArrangementGoals(userId, groups, strategy)
+      .then((res) => {
+        if (res.completedAny) {
+          const names = res.completedList.map((c) => c.title).join(', ');
+          setChallengeNotification(`🎯 Daily Challenge Completed: ${names}! +Bonus XP ready in Dashboard!`);
+          setTimeout(() => setChallengeNotification(null), 6000);
+        }
+      })
+      .catch(() => {});
 
     // 1. Optimistic local update
     dispatch(optimisticArrangeHand({ groups, strategy }));
@@ -247,6 +263,24 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
           <PWAInstallButton />
 
           <button
+            onClick={() => dispatch(toggleChatVisibility())}
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition shadow-sm border ${
+              isChatVisible
+                ? 'bg-emerald-500 text-slate-950 font-bold border-emerald-400'
+                : 'bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-200 border-slate-700'
+            }`}
+            title={isChatVisible ? 'Close Table Chat' : 'Open Table Chat'}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Chat</span>
+            {unreadChatCount > 0 && !isChatVisible && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setShowAIModelModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900 text-xs font-semibold text-purple-300 border border-purple-500/40 transition shadow-sm"
             title="Offline AI Model & Data Pipeline"
@@ -315,6 +349,22 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
           )}
         </div>
       </header>
+
+      {/* Daily Challenge Completed Toast Notification */}
+      {challengeNotification && (
+        <div className="w-full bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 border-b border-indigo-500/50 px-4 py-2 flex items-center justify-between text-xs z-20 shadow-lg animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2 text-indigo-200 font-bold">
+            <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+            <span>{challengeNotification}</span>
+          </div>
+          <button
+            onClick={() => setChallengeNotification(null)}
+            className="text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Spectator / Inspector Banner */}
       {userSeatIndex === null && (
@@ -458,6 +508,9 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
         onCompleteGame={handleCompleteAndArchive}
         audioEnabled={audioEnabled}
       />
+
+      {/* Real-time Table Chat Interface */}
+      <TableChat />
     </div>
   );
 };

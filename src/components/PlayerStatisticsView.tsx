@@ -31,6 +31,8 @@ import {
   Shield,
   Clock,
   Sparkles,
+  Download,
+  Bot,
 } from 'lucide-react';
 
 interface PlayerStatisticsViewProps {
@@ -97,15 +99,40 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
     // Sort chronologically for timeline
     const sortedChronological = [...relevantGames].sort((a, b) => a.completedAt - b.completedAt);
 
-    sortedChronological.forEach((game, idx) => {
-      totalPlayed += 1;
-      const isWinner =
-        game.winnerId === currentUser.uid ||
-        game.winnerName === currentUser.username ||
-        (filterScope === 'all' && game.winnerCumulativeScore >= 1000);
+    let totalLoss = 0;
+    let humanWins = 0;
+    let humanLosses = 0;
+    let agentWins = 0;
+    let agentLosses = 0;
 
-      if (isWinner) {
-        totalWon += 1;
+    sortedChronological.forEach((game, idx) => {
+      if (filterScope === 'all') {
+        // Requirement 3: Global tournament analytics counts wins/losses based on both real users and agents.
+        // If an agent loses, that counts as a loss!
+        game.players.forEach((p) => {
+          totalPlayed += 1;
+          const isWinner = p.id === game.winnerId || p.name === game.winnerName;
+          if (isWinner) {
+            totalWon += 1;
+            if (p.isAgent) agentWins += 1;
+            else humanWins += 1;
+          } else {
+            totalLoss += 1;
+            if (p.isAgent) agentLosses += 1;
+            else humanLosses += 1;
+          }
+        });
+      } else {
+        // User personal stats
+        totalPlayed += 1;
+        const isWinner =
+          game.winnerId === currentUser.uid || game.winnerName === currentUser.username;
+
+        if (isWinner) {
+          totalWon += 1;
+        } else {
+          totalLoss += 1;
+        }
       }
 
       // Find user player record if scoped to user
@@ -147,7 +174,7 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
 
     const winLossData = [
       { name: 'Wins', value: totalWon, color: '#10b981' }, // emerald-500
-      { name: 'Losses', value: Math.max(0, totalPlayed - totalWon), color: '#f43f5e' }, // rose-500
+      { name: 'Losses', value: totalLoss, color: '#f43f5e' }, // rose-500
     ];
 
     const distributionData = Object.entries(scoreBuckets).map(([range, count]) => ({
@@ -167,7 +194,11 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
     return {
       totalPlayed,
       totalWon,
-      totalLoss: Math.max(0, totalPlayed - totalWon),
+      totalLoss,
+      humanWins,
+      humanLosses,
+      agentWins,
+      agentLosses,
       winRatePct,
       avgScore,
       highestScore,
@@ -176,8 +207,69 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
       distributionData,
       timelineData: timelineData.slice(-15),
       strategyChartData,
+      strategyDetails: strategyWins,
     };
   }, [relevantGames, filterScope, currentUser]);
+
+  // Requirement 1: Export current user's strategy performance data as a JSON file
+  const handleExportJSON = () => {
+    const metrics = stats;
+    const exportData = {
+      title: 'Hazari Masters – Strategy Performance & Telemetry Export',
+      exportedAt: new Date().toISOString(),
+      timestamp: Date.now(),
+      scope: filterScope,
+      user: {
+        uid: currentUser.uid,
+        username: currentUser.username,
+        email: currentUser.email,
+        role: currentUser.role,
+      },
+      summary: {
+        totalMatchesCount: relevantGames.length,
+        totalGameOutcomesEvaluated: metrics.totalPlayed,
+        totalWins: metrics.totalWon,
+        totalLosses: metrics.totalLoss,
+        winRatePct: `${metrics.winRatePct}%`,
+        highestScore: metrics.highestScore,
+        averageScore: metrics.avgScore,
+        globalBreakdown:
+          filterScope === 'all'
+            ? {
+                humanWins: metrics.humanWins,
+                humanLosses: metrics.humanLosses,
+                agentWins: metrics.agentWins,
+                agentLosses: metrics.agentLosses,
+              }
+            : undefined,
+      },
+      strategyPerformance: metrics.strategyDetails,
+      scoreDistribution: metrics.distributionData,
+      matchTimeline: metrics.timelineData,
+      rawMatchHistory: relevantGames.map((g) => ({
+        gameId: g.gameId,
+        tableName: g.tableName,
+        completedAt: g.completedAt,
+        completedDate: new Date(g.completedAt).toISOString(),
+        winnerName: g.winnerName,
+        winnerCumulativeScore: g.winnerCumulativeScore,
+        userWon: g.winnerId === currentUser.uid || g.winnerName === currentUser.username,
+        players: g.players,
+        roundsHistory: g.roundsHistory || [],
+        trainingSamples: g.trainingSamples || [],
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hazari_strategy_performance_${currentUser.username || 'user'}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const COLORS = ['#10b981', '#64748b'];
 
@@ -189,7 +281,7 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
           <div className="flex items-center gap-2">
             <h2 className="text-base font-black text-slate-100 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-emerald-400" />
-              <span>Player Performance &amp; Match Analytics</span>
+              <span>Victory Analytics &amp; Strategy Performance</span>
             </h2>
             <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
               Firestore Live
@@ -228,6 +320,17 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
             </button>
           </div>
 
+          {/* Requirement 1: Export Strategy Performance Data as JSON */}
+          <button
+            onClick={handleExportJSON}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition hover:scale-102"
+            title="Export current user's strategy performance data as JSON file for external analysis"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-200" />
+            <span className="hidden sm:inline">Export Strategy JSON</span>
+            <span className="sm:hidden">Export</span>
+          </button>
+
           <button
             onClick={loadStatsData}
             disabled={isRefreshing}
@@ -238,6 +341,39 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
           </button>
         </div>
       </div>
+
+      {/* Global Human vs Agent Breakdown Banner */}
+      {filterScope === 'all' && stats.totalPlayed > 0 && (
+        <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-500/30 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-purple-400" />
+            <span className="font-bold text-slate-200">
+              Global Outcome Tracking: Real Users &amp; AI Agents
+            </span>
+            <span className="text-[10px] text-purple-300/80">
+              (Each non-winning seat counts as a loss)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs font-mono">
+            <div className="flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-slate-400">Humans:</span>
+              <span className="text-emerald-400 font-bold">{stats.humanWins}W</span>
+              <span className="text-slate-500">/</span>
+              <span className="text-rose-400 font-bold">{stats.humanLosses}L</span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Bot className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="text-slate-400">Agents:</span>
+              <span className="text-emerald-400 font-bold">{stats.agentWins}W</span>
+              <span className="text-slate-500">/</span>
+              <span className="text-rose-400 font-bold">{stats.agentLosses}L</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center p-16 rounded-3xl bg-slate-900/50 border border-slate-800 text-center gap-3">

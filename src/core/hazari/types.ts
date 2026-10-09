@@ -87,6 +87,41 @@ export type TableStatus =
   | 'GAME_OVER'
   | 'COMPLETED_CLOSED';
 
+export interface PlayerRoundRecord {
+  playerId: string;
+  playerName: string;
+  isAgent: boolean;
+  seatIndex: number;
+  roundScore: number;
+  cumulativeScore: number;
+  strategyUsed: string;
+  features: number[]; // 10-feature normalized vector for this round
+  cardsArranged?: HandGroups | null;
+}
+
+export interface DetailedRoundRecord {
+  roundNumber: number;
+  winnerSeat?: number;
+  winnerName: string;
+  pointsAwarded: number;
+  winningHand?: string;
+  playerScores: {
+    playerName: string;
+    roundScore: number;
+    cumulativeScore: number;
+  }[];
+  playerDetails?: PlayerRoundRecord[];
+  tricks?: TrickResult[];
+  trainingSamples?: {
+    features: number[];
+    winningStrategy: string;
+    score: number;
+    playerId?: string;
+    playerName?: string;
+    roundNumber?: number;
+  }[];
+}
+
 export interface TableState {
   tableId: string;
   tableName: string;
@@ -99,6 +134,7 @@ export interface TableState {
   currentTrick: number; // 1 to 4
   currentTrickPlays: TrickPlay[];
   tricksHistory: TrickResult[];
+  roundsHistory?: DetailedRoundRecord[];
   targetScore: number; // 1000
   gameWinnerSeat: number | null;
   seatWins?: number[]; // count of tournament game wins across table shuffles

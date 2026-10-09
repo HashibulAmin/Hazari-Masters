@@ -1,6 +1,6 @@
 import React from 'react';
 import { TableState } from '../core/hazari/types';
-import { Trophy, Bot, User, CheckCircle2, ArrowLeft, Award, RotateCcw } from 'lucide-react';
+import { Trophy, Bot, User, CheckCircle2, ArrowLeft, Award, RotateCcw, Activity, Brain, Cpu, Sparkles, Layers } from 'lucide-react';
 
 interface ScoreboardModalProps {
   isOpen: boolean;
@@ -155,6 +155,93 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
               </div>
             );
           })}
+
+          {/* Requirement 4: Game Score Log recording each round score for each player */}
+          <div className="pt-4 border-t border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Game Score Log (All Rounds &amp; ML Telemetry)</span>
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Records each round score for all 4 players, winning hand, strategy used, and 10-dim ML vectors.
+                </p>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                {tableState.roundsHistory?.length || 0} Rounds Saved
+              </span>
+            </div>
+
+            {tableState.roundsHistory && tableState.roundsHistory.length > 0 ? (
+              <div className="rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 shadow-inner">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-slate-900 border-b border-slate-800 text-slate-400 font-semibold uppercase text-[9px]">
+                      <tr>
+                        <th className="py-2 px-3">Round</th>
+                        <th className="py-2 px-3">Round Winner</th>
+                        <th className="py-2 px-3">Points Won</th>
+                        <th className="py-2 px-3">All Players Round Scores &amp; Strategy</th>
+                        <th className="py-2 px-3 text-right">ML Vectors</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {tableState.roundsHistory.map((rh, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-slate-900/40 transition">
+                          <td className="py-2.5 px-3 font-bold text-slate-300 whitespace-nowrap">
+                            R#{rh.roundNumber}
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className="font-bold text-emerald-400 font-sans">{rh.winnerName}</span>
+                            {rh.winningHand && (
+                              <div className="text-[9px] text-slate-400 font-sans truncate max-w-[150px]">
+                                {rh.winningHand}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-amber-400 whitespace-nowrap">
+                            +{rh.pointsAwarded} pts
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-sans">
+                              {rh.playerScores.map((ps, psIdx) => {
+                                const detail = rh.playerDetails?.find((d) => d.playerName === ps.playerName);
+                                return (
+                                  <div key={psIdx} className="flex items-center justify-between gap-1 text-slate-300">
+                                    <span className="truncate max-w-[80px]">{ps.playerName}:</span>
+                                    <span className="font-mono text-amber-300 font-bold">+{ps.roundScore}</span>
+                                    <span className="text-[9px] text-slate-500 font-mono">({ps.cumulativeScore})</span>
+                                    {detail?.strategyUsed && (
+                                      <span className="text-[8px] px-1 py-0.2 rounded bg-slate-800 text-sky-400 font-mono">
+                                        {detail.strategyUsed.replace('_', ' ')}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-sans font-semibold">
+                              <Brain className="w-2.5 h-2.5" />
+                              <span>4 Vectors</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 text-center">
+                <p className="text-xs text-slate-400">
+                  Round 1 is in progress. Every round's score for each player, winning hand, strategy, and feature vectors will be recorded here and synchronized to Firebase.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer with Back button */}

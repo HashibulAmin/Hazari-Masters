@@ -7,6 +7,8 @@ import {
   privateHandUpdated,
   setPipelineStatus,
   seatLeft,
+  addChatMessage,
+  setChatHistory,
 } from './tableSlice';
 import { addLog } from './networkSlice';
 import { HandGroups } from '../core/hazari/types';
@@ -93,6 +95,16 @@ export const socketMiddleware: Middleware = (store) => {
         store.dispatch(seatLeft());
         store.dispatch(addLog({ level: 'info', message: 'You left your seat. AI Agent took over.' }));
       });
+
+      socket.on('table:chat_message', (payload) => {
+        store.dispatch(addChatMessage(payload));
+      });
+
+      socket.on('table:chat_history', (payload) => {
+        if (Array.isArray(payload)) {
+          store.dispatch(setChatHistory(payload));
+        }
+      });
     }
 
     const emitWithLag = (eventName: string, payload: any) => {
@@ -173,6 +185,18 @@ export const socketMiddleware: Middleware = (store) => {
         tableName,
         userId,
         userName,
+      });
+    }
+
+    if (action.type === 'socket/sendChatMessage') {
+      const net = store.getState().network;
+      const tbl = store.getState().table;
+      emitWithLag('send_chat_message', {
+        tableId: net.tableId,
+        text: action.payload.text,
+        senderId: net.userId,
+        senderName: net.userName,
+        seatIndex: tbl.userSeatIndex,
       });
     }
 

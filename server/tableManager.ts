@@ -8,6 +8,8 @@ import {
   TableStatus,
   TrickPlay,
   TrickResult,
+  DetailedRoundRecord,
+  PlayerRoundRecord,
 } from '../src/core/hazari/types';
 import { shuffleAndDeal } from '../src/core/hazari/deck';
 import { evaluate3CardGroup, evaluateExtraGroup } from '../src/core/hazari/evaluator';
@@ -22,11 +24,24 @@ export interface InternalPlayerHand {
   isReady: boolean;
 }
 
+export interface TableChatMessage {
+  id: string;
+  tableId: string;
+  senderId: string;
+  senderName: string;
+  seatIndex: number | null; // null for spectator
+  text: string;
+  timestamp: number;
+  isSystem?: boolean;
+  isAgent?: boolean;
+}
+
 export class TableInstance {
   public state: TableState;
   // Private server-only hand data (hidden from clients until played)
   public playerHands: Map<number, InternalPlayerHand> = new Map();
   public playerStrategies: Map<number, ArrangementStrategy> = new Map();
+  public chatMessages: TableChatMessage[] = [];
   private timerRef: NodeJS.Timeout | null = null;
   private onStateChangeCallback: (state: TableState, privateHands: Map<number, InternalPlayerHand>) => void;
   private onGameFinishedCallback?: (
@@ -73,6 +88,8 @@ export class TableInstance {
       currentTrick: 1,
       currentTrickPlays: [],
       tricksHistory: [],
+      roundsHistory: [],
+      trainingSamples: [],
       targetScore: 1000,
       gameWinnerSeat: null,
       lastActionMessage: 'Table created. Waiting to start deal.',
@@ -219,6 +236,17 @@ export class TableInstance {
     this.state.players[seatIndex] = agent;
     this.state.lastActionMessage = `${prev.name} left. ${agent.name} took over Seat ${seatIndex + 1}.`;
     this.notify();
+
+    // When the last user leaves and all seats are now AI agents, finish the tournament with AI agents and auto-complete
+    const hasAnyHuman = this.state.players.some((p) => !p.isAgent);
+    if (!hasAnyHuman) {
+      this.state.lastActionMessage = 'All human players have left. Completing tournament with AI agents...';
+      this.notify();
+      setTimeout(() => {
+        this.finishGameWithAllAgents();
+      }, 500);
+      return true;
+    }
 
     if (this.state.status === 'ARRANGING' && !agent.isReady) {
       const hand = this.playerHands.get(seatIndex);
@@ -455,6 +483,64 @@ export class TableInstance {
       ? winCheck.winnerSeatIndex
       : bestRoundWinnerSeat;
 
+    // Requirement 4: Record every single round's scores, winning hand, ML vectors, and strategies
+    const roundTrainingSamples = this.state.players.map((p, idx) => {
+      const hand = this.playerHands.get(idx);
+      const feat = hand ? extractFeatures(hand.dealtCards).normalizedVector : [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+      const strat = this.playerStrategies.get(idx) || (idx === bestRoundWinnerSeat ? 'optimal_ev' : 'balanced');
+      return {
+        features: feat,
+        winningStrategy: strat,
+        score: p.roundScore,
+        playerId: p.id,
+        playerName: p.name,
+        roundNumber: this.state.currentRound,
+      };
+    });
+
+    const winningTricks = this.state.tricksHistory.filter((t) => t.winnerSeatIndex === bestRoundWinnerSeat);
+    const winningHandSummary = winningTricks.length > 0
+      ? winningTricks.map((t) => `Trick ${t.trickNumber}: ${t.winningCards.map((c) => c.code).join(' ')} (+${t.pointsAwarded} pts)`).join(' | ')
+      : `${this.state.players[bestRoundWinnerSeat].name} took round (+${maxRoundScore} pts)`;
+
+    const playerDetails: PlayerRoundRecord[] = this.state.players.map((p, idx) => {
+      const hand = this.playerHands.get(idx);
+      const feat = hand ? extractFeatures(hand.dealtCards).normalizedVector : [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+      return {
+        playerId: p.id,
+        playerName: p.name,
+        isAgent: p.isAgent,
+        seatIndex: idx,
+        roundScore: p.roundScore,
+        cumulativeScore: p.cumulativeScore,
+        strategyUsed: this.playerStrategies.get(idx) || 'balanced',
+        features: feat,
+        cardsArranged: hand ? hand.arrangedGroups : null,
+      };
+    });
+
+    const roundRecord: DetailedRoundRecord = {
+      roundNumber: this.state.currentRound,
+      winnerSeat: bestRoundWinnerSeat,
+      winnerName: this.state.players[bestRoundWinnerSeat].name,
+      pointsAwarded: maxRoundScore,
+      winningHand: winningHandSummary,
+      playerScores: this.state.players.map((p) => ({
+        playerName: p.name,
+        roundScore: p.roundScore,
+        cumulativeScore: p.cumulativeScore,
+      })),
+      playerDetails,
+      tricks: [...this.state.tricksHistory],
+      trainingSamples: roundTrainingSamples,
+    };
+
+    if (!this.state.roundsHistory) this.state.roundsHistory = [];
+    this.state.roundsHistory.push(roundRecord);
+
+    if (!this.state.trainingSamples) this.state.trainingSamples = [];
+    this.state.trainingSamples.push(...roundTrainingSamples);
+
     // Send data to sequential machine learning pipeline!
     if (this.onGameFinishedCallback) {
       this.onGameFinishedCallback(this.state, effectiveWinnerSeat, this.playerHands, this.playerStrategies);
@@ -466,20 +552,6 @@ export class TableInstance {
       if (!this.state.seatWins) this.state.seatWins = [0, 0, 0, 0];
       this.state.seatWins[winCheck.winnerSeatIndex] = (this.state.seatWins[winCheck.winnerSeatIndex] || 0) + 1;
 
-      // Extract real normalized 10-feature vectors for all players for AI training
-      this.state.trainingSamples = this.state.players.map((p, idx) => {
-        const hand = this.playerHands.get(idx);
-        const feat = hand ? extractFeatures(hand.dealtCards).normalizedVector : [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
-        const strat = this.playerStrategies.get(idx) || (idx === winCheck.winnerSeatIndex ? 'optimal_ev' : 'balanced');
-        return {
-          features: feat,
-          winningStrategy: strat,
-          score: p.cumulativeScore,
-          playerId: p.id,
-          playerName: p.name,
-        };
-      });
-
       const champion = this.state.players[winCheck.winnerSeatIndex];
       this.state.lastActionMessage = `🎉 GAME OVER! ${champion.name} reaches ${champion.cumulativeScore} points and wins the 1000-point Hazari Tournament!`;
       this.notify();
@@ -489,7 +561,7 @@ export class TableInstance {
       if (!hasRealUser) {
         setTimeout(() => {
           this.completeGame('system_agent_bot');
-        }, 1500);
+        }, 1200);
       }
     } else {
       this.state.lastActionMessage = `Round ${this.state.currentRound} complete. Winner: ${this.state.players[bestRoundWinnerSeat].name} (+${maxRoundScore} pts). Next deal starting...`;
@@ -503,6 +575,9 @@ export class TableInstance {
   }
 
   public completeGame(closedByUserId: string): { success: boolean } {
+    if (this.state.status === 'COMPLETED_CLOSED') {
+      return { success: true };
+    }
     // Requirement 7: before completing a game the model would be train on the single game data
     if (this.onGameFinishedCallback) {
       const winnerSeat = this.state.gameWinnerSeat ?? 0;
@@ -519,6 +594,8 @@ export class TableInstance {
   public shuffleTable() {
     this.state.currentRound = 1;
     this.state.gameWinnerSeat = null;
+    this.state.roundsHistory = [];
+    this.state.trainingSamples = [];
     this.state.players.forEach((p) => {
       p.cumulativeScore = 0;
       p.roundScore = 0;
@@ -540,6 +617,7 @@ export class TableInstance {
    * Requirement: When the last user left for more than 30 min, replace seat with an agent
    * and complete gameplay with all agents, then declare winner and auto-complete after round.
    * If more than 1 user and all are out for > 30 min, replace all of them with agents and auto-complete.
+   * If table has all open seats and all agents, finish the game with AI agents.
    */
   public checkAbandonedGameTimeout(timeoutMs: number = 30 * 60 * 1000): {
     timedOut: boolean;
@@ -581,35 +659,177 @@ export class TableInstance {
 
     // Check if table now has ALL 4 players as AI agents
     const remainingHumans = this.state.players.filter((p) => !p.isAgent);
-    if (remainingHumans.length === 0 && replacedSeats.length > 0) {
-      this.fastForwardAgentGameToCompletion();
+    if (remainingHumans.length === 0) {
+      this.finishGameWithAllAgents();
       return { timedOut: true, replacedSeats };
     }
 
     return { timedOut: false, replacedSeats };
   }
 
-  public fastForwardAgentGameToCompletion() {
-    this.state.lastActionMessage = 'All players inactive for > 30 min. Auto-completing tournament with AI agents...';
+  private startDealSync() {
+    this.state.status = 'ARRANGING';
+    this.state.currentTrick = 1;
+    this.state.currentTrickPlays = [];
+    this.state.tricksHistory = [];
+    this.state.players.forEach((p) => {
+      p.roundScore = 0;
+      p.isReady = false;
+      p.hasPlayedCurrentTrick = false;
+    });
+
+    const dealtDecks = shuffleAndDeal();
+    for (let seat = 0; seat < 4; seat++) {
+      this.playerHands.set(seat, {
+        dealtCards: dealtDecks[seat],
+        arrangedGroups: null,
+        isReady: false,
+      });
+      const agentArr = arrangeAgentHand(dealtDecks[seat], seat);
+      const hand = this.playerHands.get(seat)!;
+      hand.arrangedGroups = agentArr.groups;
+      hand.isReady = true;
+      this.state.players[seat].isReady = true;
+      this.playerStrategies.set(seat, agentArr.strategyUsed);
+    }
+  }
+
+  public finishGameWithAllAgents() {
+    if (this.state.status === 'COMPLETED_CLOSED') return;
+
+    this.state.lastActionMessage = 'All players inactive for > 30 min. Running tournament to completion with AI agents...';
     this.notify();
 
-    // Auto arrange hands if in ARRANGING state
-    if (this.state.status === 'ARRANGING') {
-      this.state.players.forEach((p, seat) => {
-        const hand = this.playerHands.get(seat);
-        if (hand && !hand.isReady) {
-          const agentArr = arrangeAgentHand(hand.dealtCards, seat);
-          hand.arrangedGroups = agentArr.groups;
-          hand.isReady = true;
-          p.isReady = true;
-          this.playerStrategies.set(seat, agentArr.strategyUsed);
+    // Ensure all 4 seats are AI agents
+    this.state.players.forEach((p, idx) => {
+      if (!p.isAgent) {
+        const agent = createAgentPlayer(idx, getRandomAgentName(idx));
+        agent.cumulativeScore = p.cumulativeScore;
+        agent.roundScore = p.roundScore;
+        agent.isReady = true;
+        this.state.players[idx] = agent;
+      }
+    });
+
+    let maxSafetyRounds = 30;
+    while (
+      (this.state.status as string) !== 'COMPLETED_CLOSED' &&
+      (this.state.status as string) !== 'GAME_OVER' &&
+      maxSafetyRounds > 0
+    ) {
+      maxSafetyRounds--;
+
+      if (
+        this.state.status === 'WAITING' ||
+        this.state.status === 'DEALING' ||
+        this.state.status === 'ROUND_SUMMARY'
+      ) {
+        this.startDealSync();
+      }
+
+      if (this.state.status === 'ARRANGING') {
+        for (let seat = 0; seat < 4; seat++) {
+          const hand = this.playerHands.get(seat);
+          if (hand && !hand.isReady) {
+            const arr = arrangeAgentHand(hand.dealtCards, seat);
+            hand.arrangedGroups = arr.groups;
+            hand.isReady = true;
+            this.state.players[seat].isReady = true;
+            this.playerStrategies.set(seat, arr.strategyUsed);
+          }
         }
-      });
-      this.checkAllArranged();
-    } else if (this.state.status === 'PLAYING_TRICK') {
-      setTimeout(() => this.executeAgentPlay(this.state.currentTurnSeat), 500);
-    } else if (this.state.status === 'WAITING' || this.state.status === 'ROUND_SUMMARY') {
-      this.startDeal();
+        this.state.status = 'PLAYING_TRICK';
+        this.state.currentTrick = 1;
+        this.state.currentTrickPlays = [];
+        this.state.currentTurnSeat = this.state.leadSeat;
+      }
+
+      // Play through all 4 tricks of this round
+      while (this.state.status === 'PLAYING_TRICK' && this.state.currentTrick <= 4) {
+        while (this.state.currentTrickPlays.length < 4) {
+          const seat = this.state.currentTurnSeat;
+          const player = this.state.players[seat];
+          const hand = this.playerHands.get(seat);
+          if (!hand || !hand.arrangedGroups) break;
+
+          let cardsToPlay: Card[];
+          if (this.state.currentTrick === 1) cardsToPlay = hand.arrangedGroups.group1;
+          else if (this.state.currentTrick === 2) cardsToPlay = hand.arrangedGroups.group2;
+          else if (this.state.currentTrick === 3) cardsToPlay = hand.arrangedGroups.group3;
+          else cardsToPlay = hand.arrangedGroups.group4;
+
+          const evaluation =
+            cardsToPlay.length === 3
+              ? evaluate3CardGroup(cardsToPlay)
+              : evaluateExtraGroup(cardsToPlay);
+          const points = cardsToPlay.reduce((sum, c) => sum + c.points, 0);
+
+          this.state.currentTrickPlays.push({
+            playerId: player.id,
+            playerName: player.name,
+            seatIndex: seat,
+            isAgent: true,
+            cards: cardsToPlay,
+            evaluation,
+            points,
+            playOrder: this.state.currentTrickPlays.length,
+          });
+
+          player.hasPlayedCurrentTrick = true;
+          this.state.currentTurnSeat = (this.state.currentTurnSeat + 1) % 4;
+        }
+
+        const result = resolveTrick(this.state.currentTrick, this.state.currentTrickPlays);
+        this.state.tricksHistory.push(result);
+        const winner = this.state.players[result.winnerSeatIndex];
+        winner.roundScore += result.pointsAwarded;
+        this.state.leadSeat = result.winnerSeatIndex;
+
+        if (this.state.currentTrick < 4) {
+          this.state.currentTrick += 1;
+          this.state.currentTrickPlays = [];
+          this.state.players.forEach((p) => {
+            p.hasPlayedCurrentTrick = false;
+          });
+          this.state.currentTurnSeat = this.state.leadSeat;
+        } else {
+          break; // 4 tricks completed!
+        }
+      }
+
+      // Finalize this round (appends detailed round record and ML vectors)
+      this.finalizeRound();
+
+      if ((this.state.status as string) === 'GAME_OVER') {
+        break;
+      }
+
+      this.state.currentRound += 1;
     }
+
+    if ((this.state.status as string) !== 'COMPLETED_CLOSED') {
+      this.completeGame('system_all_agents');
+    }
+  }
+
+  public fastForwardAgentGameToCompletion() {
+    this.finishGameWithAllAgents();
+  }
+
+  public addChatMessage(msg: Omit<TableChatMessage, 'id' | 'timestamp'>): TableChatMessage {
+    const chatMsg: TableChatMessage = {
+      ...msg,
+      id: `chat_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      timestamp: Date.now(),
+    };
+    this.chatMessages.push(chatMsg);
+    if (this.chatMessages.length > 80) {
+      this.chatMessages = this.chatMessages.slice(-80);
+    }
+    return chatMsg;
+  }
+
+  public getRecentChatMessages(): TableChatMessage[] {
+    return this.chatMessages;
   }
 }

@@ -9,6 +9,9 @@ import { GameDataPipeline } from './server/gamePipeline';
 import { runHazariCoreTests } from './src/core/hazari/__tests__/hazari.test';
 import { HandGroups, TableState } from './src/core/hazari/types';
 import { ArrangementStrategy } from './src/core/hazari/arranger';
+import { archiveCompletedGame } from './src/firebase/tableService';
+import { db } from './src/firebase/config';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 
 dotenv.config();
 
@@ -41,13 +44,20 @@ function getOrCreateTable(tableId: string = 'main', tableName: string = 'Hazari 
         // Broadcast state update to everyone in the room
         broadcastTableUpdate(tableId, tableState, privateHands);
       },
-      (tableState, winnerSeat, hands, strategies) => {
+      async (tableState, winnerSeat, hands, strategies) => {
         // Send finished game data to sequential training pipeline
         const record = gamePipeline.ingestFinishedGame(tableState, winnerSeat, hands, strategies);
         io.to(tableId).emit('pipeline:game_recorded', {
           record,
           pipelineStatus: gamePipeline.getPipelineStatus(),
         });
+
+        // Archive completed game session to Firestore so completed_games has all round scores and table is closed
+        try {
+          await archiveCompletedGame(tableState, 'system_all_agents');
+        } catch (err) {
+          console.warn('Auto-archive completed game notice:', err);
+        }
       }
     );
     tables.set(tableId, instance);
@@ -123,11 +133,44 @@ app.post('/api/model/train-from-firebase', express.json({ limit: '10mb' }), (req
 });
 
 // Periodic abandonment monitor: checks every 5 mins for tables inactive > 30 minutes
-setInterval(() => {
+async function checkAllTablesForAbandonment() {
+  // Check active in-memory tables
   tables.forEach((table) => {
     table.checkAbandonedGameTimeout(30 * 60 * 1000);
   });
+
+  // Check Firestore tables: if a game has all open seats and all agents or all users idle > 30 min, finish it
+  try {
+    const tablesRef = collection(db, 'tables');
+    const q = query(tablesRef, where('isCompleted', '==', false), limit(50));
+    const snap = await getDocs(q);
+    const now = Date.now();
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const tId = docSnap.id;
+      const lastActive = data.updatedAt || 0;
+      const humanCount = data.humanPlayerCount ?? 0;
+      const allAgents = humanCount === 0 || data.availableSeatsCount === 4;
+      const isIdle30m = now - lastActive >= 30 * 60 * 1000;
+
+      if (allAgents && isIdle30m) {
+        const table = getOrCreateTable(tId, data.tableName || 'Hazari Table');
+        table.checkAbandonedGameTimeout(0); // Force finish game with AI agents and close
+      }
+    });
+  } catch (err) {
+    // Silently continue if Firestore check times out
+  }
+}
+
+setInterval(() => {
+  checkAllTablesForAbandonment();
 }, 5 * 60 * 1000);
+
+// Run an initial check 10 seconds after server startup
+setTimeout(() => {
+  checkAllTablesForAbandonment();
+}, 10000);
 
 app.post('/api/table/:tableId/check-abandonment', (req, res) => {
   const table = tables.get(req.params.tableId);
@@ -175,6 +218,7 @@ io.on('connection', (socket: Socket) => {
           localHand: clientView.localHand,
           pipelineStatus: gamePipeline.getPipelineStatus(),
         });
+        socket.emit('table:chat_history', table.getRecentChatMessages());
       } else {
         socket.emit('table:join_error', { error: joinResult.error });
       }
@@ -207,10 +251,89 @@ io.on('connection', (socket: Socket) => {
         localHand: null,
         pipelineStatus: gamePipeline.getPipelineStatus(),
       });
+      socket.emit('table:chat_history', table.getRecentChatMessages());
 
       // If game is in WAITING state, start deal so inspector can observe live gameplay
       if (table.state.status === 'WAITING') {
         table.startDeal();
+      }
+    }
+  );
+
+  socket.on(
+    'send_chat_message',
+    ({
+      tableId = 'main',
+      text,
+      senderId,
+      senderName,
+      seatIndex,
+    }: {
+      tableId?: string;
+      text: string;
+      senderId?: string;
+      senderName?: string;
+      seatIndex?: number | null;
+    }) => {
+      if (!text || typeof text !== 'string' || !text.trim()) return;
+      const table = tables.get(tableId);
+      if (!table) return;
+
+      const trimmed = text.trim().slice(0, 280);
+      const msg = table.addChatMessage({
+        tableId,
+        senderId: senderId || currentUserId || socket.id,
+        senderName: senderName || 'Player',
+        seatIndex: seatIndex !== undefined ? seatIndex : userSeatIndex,
+        text: trimmed,
+        isSystem: false,
+        isAgent: false,
+      });
+
+      io.to(tableId).emit('table:chat_message', msg);
+
+      // AI Agent conversational reactions to common greetings/banter
+      const lower = trimmed.toLowerCase();
+      if (
+        lower.includes('gg') ||
+        lower.includes('good game') ||
+        lower.includes('hi') ||
+        lower.includes('hello') ||
+        lower.includes('nice') ||
+        lower.includes('well played') ||
+        lower.includes('wp') ||
+        lower.includes('troy') ||
+        lower.includes('run') ||
+        lower.includes('gl')
+      ) {
+        const agents = table.state.players.filter((p) => p.isAgent);
+        if (agents.length > 0) {
+          setTimeout(() => {
+            const agent = agents[Math.floor(Math.random() * agents.length)];
+            let reply = 'Well played! Good game!';
+            if (lower.includes('hi') || lower.includes('hello')) {
+              reply = 'Hello! Best of luck at the Hazari table!';
+            } else if (lower.includes('gl')) {
+              reply = 'Good luck to you too! May the highest Troy win!';
+            } else if (lower.includes('troy')) {
+              reply = 'A Troy in trick 1 takes all! Never break a trio!';
+            } else if (lower.includes('run')) {
+              reply = 'A solid run makes a strong second group!';
+            } else if (lower.includes('nice') || lower.includes('wp')) {
+              reply = 'Thanks! Watch out for those ace honors!';
+            }
+            const botMsg = table.addChatMessage({
+              tableId,
+              senderId: agent.id,
+              senderName: agent.name,
+              seatIndex: agent.seatIndex,
+              text: reply,
+              isSystem: false,
+              isAgent: true,
+            });
+            io.to(tableId).emit('table:chat_message', botMsg);
+          }, 800);
+        }
       }
     }
   );

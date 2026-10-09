@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { handleFirestoreError, OperationType } from './errors';
-import { TableState, TrickResult } from '../core/hazari/types';
+import { TableState, TrickResult, DetailedRoundRecord } from '../core/hazari/types';
 import { OfflineRandomForest } from '../core/hazari/mlModel';
 
 export interface FirestoreTableSummary {
@@ -44,13 +44,14 @@ export interface CompletedGameRecord {
   winnerId: string;
   winnerName: string;
   winnerCumulativeScore: number;
-  roundsHistory: {
-    roundNumber: number;
-    winnerName: string;
-    pointsAwarded: number;
-    playerScores: { playerName: string; roundScore: number; cumulativeScore: number }[];
+  roundsHistory: DetailedRoundRecord[];
+  players: {
+    id: string;
+    name: string;
+    isAgent: boolean;
+    cumulativeScore: number;
+    roundScoresHistory?: number[];
   }[];
-  players: { id: string; name: string; isAgent: boolean; cumulativeScore: number }[];
   closedBy: string[];
   is_trained?: boolean;
   isTrainedForGlobalModel?: boolean;
@@ -77,16 +78,25 @@ export function normalizeCompletedGameRecord(data: any, docId?: string): Complet
       ? new Date(data.completedAt).getTime()
       : Date.now();
 
-  const players = Array.isArray(data?.players)
-    ? data.players.map((p: any, idx: number) => ({
-        id: p?.id || `player_${idx}`,
-        name: p?.name || `Player ${idx + 1}`,
-        isAgent: Boolean(p?.isAgent),
-        cumulativeScore: typeof p?.cumulativeScore === 'number' ? p.cumulativeScore : 0,
-      }))
-    : [];
-
   const roundsHistory = Array.isArray(data?.roundsHistory) ? data.roundsHistory : [];
+
+  const players = Array.isArray(data?.players)
+    ? data.players.map((p: any, idx: number) => {
+        const roundScores = Array.isArray(p?.roundScoresHistory)
+          ? p.roundScoresHistory
+          : roundsHistory.map((r: any) => {
+              const ps = r?.playerScores?.find((score: any) => score?.playerName === (p?.name || `Player ${idx + 1}`));
+              return typeof ps?.roundScore === 'number' ? ps.roundScore : 0;
+            });
+        return {
+          id: p?.id || `player_${idx}`,
+          name: p?.name || `Player ${idx + 1}`,
+          isAgent: Boolean(p?.isAgent),
+          cumulativeScore: typeof p?.cumulativeScore === 'number' ? p.cumulativeScore : 0,
+          roundScoresHistory: roundScores,
+        };
+      })
+    : [];
 
   return {
     gameId: data?.gameId || docId || `game_${Date.now()}`,
@@ -272,6 +282,62 @@ async function seedInitialCompletedGame() {
 
   try {
     await setDoc(doc(db, 'completed_games', sampleId), sampleRecord);
+
+    const sampleId2 = `game_sample_human_${Date.now()}`;
+    const sampleRecord2: CompletedGameRecord = {
+      gameId: sampleId2,
+      tableId: 'table_championship_archive_2',
+      tableName: 'Hazari Pro Arena Tournament',
+      completedAt: now - 1800000,
+      winnerId: 'human_pro_1',
+      winnerName: 'Grandmaster_Riaz',
+      winnerCumulativeScore: 1010,
+      roundsHistory: [
+        {
+          roundNumber: 1,
+          winnerName: 'Grandmaster_Riaz',
+          pointsAwarded: 280,
+          playerScores: [
+            { playerName: 'Grandmaster_Riaz', roundScore: 280, cumulativeScore: 280 },
+            { playerName: 'Agent Kabir (#1)', roundScore: 60, cumulativeScore: 60 },
+            { playerName: 'Agent Ananya (#2)', roundScore: 20, cumulativeScore: 20 },
+            { playerName: 'Agent Maya (#4)', roundScore: 0, cumulativeScore: 0 },
+          ],
+        },
+        {
+          roundNumber: 2,
+          winnerName: 'Grandmaster_Riaz',
+          pointsAwarded: 370,
+          playerScores: [
+            { playerName: 'Grandmaster_Riaz', roundScore: 370, cumulativeScore: 650 },
+            { playerName: 'Agent Kabir (#1)', roundScore: 80, cumulativeScore: 140 },
+            { playerName: 'Agent Ananya (#2)', roundScore: 40, cumulativeScore: 60 },
+            { playerName: 'Agent Maya (#4)', roundScore: 10, cumulativeScore: 10 },
+          ],
+        },
+        {
+          roundNumber: 3,
+          winnerName: 'Grandmaster_Riaz',
+          pointsAwarded: 360,
+          playerScores: [
+            { playerName: 'Grandmaster_Riaz', roundScore: 360, cumulativeScore: 1010 },
+            { playerName: 'Agent Kabir (#1)', roundScore: 100, cumulativeScore: 240 },
+            { playerName: 'Agent Ananya (#2)', roundScore: 60, cumulativeScore: 120 },
+            { playerName: 'Agent Maya (#4)', roundScore: 20, cumulativeScore: 30 },
+          ],
+        },
+      ],
+      players: [
+        { id: 'human_pro_1', name: 'Grandmaster_Riaz', isAgent: false, cumulativeScore: 1010 },
+        { id: 'agent_0', name: 'Agent Kabir (#1)', isAgent: true, cumulativeScore: 240 },
+        { id: 'agent_1', name: 'Agent Ananya (#2)', isAgent: true, cumulativeScore: 120 },
+        { id: 'agent_3', name: 'Agent Maya (#4)', isAgent: true, cumulativeScore: 30 },
+      ],
+      closedBy: ['system'],
+      isTrainedForGlobalModel: false,
+      trainedForUserIds: [],
+    };
+    await setDoc(doc(db, 'completed_games', sampleId2), sampleRecord2);
   } catch {}
 }
 
@@ -321,34 +387,70 @@ export async function recordGameSessionOnWinner(
   const gameId = sessionId;
   const gameRef = doc(db, 'completed_games', gameId);
 
-  const roundsHistory = state.tricksHistory && state.tricksHistory.length > 0
-    ? [
-        {
-          roundNumber: state.currentRound,
-          winnerName: champion.name,
-          pointsAwarded: champion.roundScore,
-          playerScores: state.players.map((p) => ({
-            playerName: p.name,
-            roundScore: p.roundScore,
-            cumulativeScore: p.cumulativeScore,
-          })),
-        },
-      ]
-    : [
-        {
-          roundNumber: state.currentRound,
-          winnerName: champion.name,
-          pointsAwarded: champion.roundScore,
-          playerScores: state.players.map((p) => ({
-            playerName: p.name,
-            roundScore: p.roundScore,
-            cumulativeScore: p.cumulativeScore,
-          })),
-        },
-      ];
+  // Preserve every round that was played on this single game (Requirement 4)
+  const roundsHistory: DetailedRoundRecord[] =
+    state.roundsHistory && state.roundsHistory.length > 0
+      ? state.roundsHistory
+      : [
+          {
+            roundNumber: state.currentRound,
+            winnerSeat: winnerSeat,
+            winnerName: champion.name,
+            pointsAwarded: champion.roundScore,
+            winningHand: `${champion.name} took final round with ${champion.roundScore} pts`,
+            playerScores: state.players.map((p) => ({
+              playerName: p.name,
+              roundScore: p.roundScore,
+              cumulativeScore: p.cumulativeScore,
+            })),
+            playerDetails: state.players.map((p, idx) => ({
+              playerId: p.id,
+              playerName: p.name,
+              isAgent: p.isAgent,
+              seatIndex: idx,
+              roundScore: p.roundScore,
+              cumulativeScore: p.cumulativeScore,
+              strategyUsed: idx === winnerSeat ? 'optimal_ev' : 'balanced',
+              features: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            })),
+            tricks: state.tricksHistory || [],
+            trainingSamples: state.trainingSamples
+              ? state.trainingSamples.map((s) => ({ ...s, roundNumber: state.currentRound }))
+              : [],
+          },
+        ];
 
-  const trainingSamples = state.trainingSamples && state.trainingSamples.length > 0
-    ? state.trainingSamples
+  // Consolidate training samples across all rounds played in this game session
+  const consolidatedSamples: any[] = [];
+  if (state.trainingSamples && state.trainingSamples.length > 0) {
+    consolidatedSamples.push(...state.trainingSamples);
+  }
+  roundsHistory.forEach((r) => {
+    if (r.trainingSamples && Array.isArray(r.trainingSamples)) {
+      r.trainingSamples.forEach((ts) => {
+        if (!consolidatedSamples.some((cs) => cs.roundNumber === ts.roundNumber && cs.playerId === ts.playerId)) {
+          consolidatedSamples.push(ts);
+        }
+      });
+    }
+    if (r.playerDetails && Array.isArray(r.playerDetails)) {
+      r.playerDetails.forEach((pd) => {
+        if (pd.features && pd.features.length === 10 && !consolidatedSamples.some((cs) => cs.roundNumber === r.roundNumber && cs.playerId === pd.playerId)) {
+          consolidatedSamples.push({
+            features: pd.features,
+            winningStrategy: pd.strategyUsed || 'balanced',
+            score: pd.roundScore,
+            playerId: pd.playerId,
+            playerName: pd.playerName,
+            roundNumber: r.roundNumber,
+          });
+        }
+      });
+    }
+  });
+
+  const trainingSamples = consolidatedSamples.length > 0
+    ? consolidatedSamples
     : state.players.map((p, idx) => ({
         features: [
           idx === winnerSeat ? 0.9 : 0.4,
@@ -379,12 +481,20 @@ export async function recordGameSessionOnWinner(
     winnerName: champion.name,
     winnerCumulativeScore: champion.cumulativeScore,
     roundsHistory,
-    players: state.players.map((p) => ({
-      id: p.id,
-      name: p.name,
-      isAgent: p.isAgent,
-      cumulativeScore: p.cumulativeScore,
-    })),
+    players: state.players.map((p) => {
+      // Record each round score for this player across all rounds in this single game
+      const roundScores = roundsHistory.map((r) => {
+        const found = r.playerScores?.find((ps) => ps.playerName === p.name);
+        return found ? found.roundScore : 0;
+      });
+      return {
+        id: p.id,
+        name: p.name,
+        isAgent: p.isAgent,
+        cumulativeScore: p.cumulativeScore,
+        roundScoresHistory: roundScores,
+      };
+    }),
     closedBy: [closedByUserId || 'system'],
     is_trained: false,
     isTrainedForGlobalModel: false,
@@ -711,7 +821,33 @@ export async function retrainModel(userId?: string): Promise<{
               });
             }
           }
-        } else {
+        }
+        // Extract samples from each round in game.roundsHistory
+        if (game.roundsHistory && Array.isArray(game.roundsHistory)) {
+          for (const round of game.roundsHistory) {
+            if (round.playerDetails && Array.isArray(round.playerDetails)) {
+              for (const pd of round.playerDetails) {
+                if (pd.features && pd.features.length === 10) {
+                  samples.push({
+                    features: pd.features,
+                    winningStrategy: pd.strategyUsed || 'balanced',
+                  });
+                }
+              }
+            }
+            if (round.trainingSamples && Array.isArray(round.trainingSamples)) {
+              for (const ts of round.trainingSamples) {
+                if (ts.features && ts.features.length === 10) {
+                  samples.push({
+                    features: ts.features,
+                    winningStrategy: ts.winningStrategy || 'optimal_ev',
+                  });
+                }
+              }
+            }
+          }
+        }
+        if (samples.length === 0) {
           const winScore = game.winnerCumulativeScore || 1000;
           samples.push({
             features: [0.75, Math.min(1, winScore / 1000), 0.7, 0.5, 0.6, 0.4, 0.8, 0.3, 0.5, 0.6],
@@ -827,7 +963,35 @@ export async function trainUserModelOnSingleGame(
         });
       }
     }
-  } else {
+  }
+
+  // Extract samples from each round in game.roundsHistory
+  if (game.roundsHistory && Array.isArray(game.roundsHistory)) {
+    for (const round of game.roundsHistory) {
+      if (round.playerDetails && Array.isArray(round.playerDetails)) {
+        for (const pd of round.playerDetails) {
+          if (pd.features && pd.features.length === 10) {
+            samples.push({
+              features: pd.features,
+              winningStrategy: pd.strategyUsed || 'balanced',
+            });
+          }
+        }
+      }
+      if (round.trainingSamples && Array.isArray(round.trainingSamples)) {
+        for (const ts of round.trainingSamples) {
+          if (ts.features && ts.features.length === 10) {
+            samples.push({
+              features: ts.features,
+              winningStrategy: ts.winningStrategy || 'optimal_ev',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  if (samples.length === 0) {
     const winScore = game.winnerCumulativeScore || 1000;
     samples.push({
       features: [0.75, Math.min(1, winScore / 1000), 0.7, 0.5, 0.6, 0.4, 0.8, 0.3, 0.5, 0.6],
@@ -887,4 +1051,238 @@ export async function trainUserModelOnSingleGame(
     accuracy: trainRes.accuracy,
     sampleCount: samples.length,
   };
+}
+
+export interface LeaderboardPlayerStats {
+  playerId: string;
+  playerName: string;
+  isAgent: boolean;
+  totalGames: number;
+  totalWins: number;
+  totalLosses: number;
+  totalCumulativeScore: number;
+  averageScore: number;
+  highestMatchScore: number;
+  overallWinRate: number; // percentage 0 - 100
+  // Performance against Human opponents
+  gamesVsHumans: number;
+  winsVsHumans: number;
+  lossesVsHumans: number;
+  winRateVsHumans: number; // percentage 0 - 100
+  // Performance against AI opponents
+  gamesVsAI: number;
+  winsVsAI: number;
+  lossesVsAI: number;
+  winRateVsAI: number; // percentage 0 - 100
+  // Composite tournament index (score weighted with win rate)
+  tournamentIndex: number;
+  // Recent form
+  recentFinishes: number[];
+  recentOutcomes: ('W' | 'L')[];
+}
+
+export function computeLeaderboardStats(
+  games: CompletedGameRecord[],
+  knownUsers: { uid: string; username: string; displayName?: string }[] = []
+): LeaderboardPlayerStats[] {
+  const map = new Map<string, LeaderboardPlayerStats>();
+
+  // Initialize known users if provided
+  for (const u of knownUsers) {
+    if (!u.uid && !u.username) continue;
+    const key = (u.uid || u.username).toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, {
+        playerId: u.uid || u.username,
+        playerName: u.username || u.displayName || 'Player',
+        isAgent: false,
+        totalGames: 0,
+        totalWins: 0,
+        totalLosses: 0,
+        totalCumulativeScore: 0,
+        averageScore: 0,
+        highestMatchScore: 0,
+        overallWinRate: 0,
+        gamesVsHumans: 0,
+        winsVsHumans: 0,
+        lossesVsHumans: 0,
+        winRateVsHumans: 0,
+        gamesVsAI: 0,
+        winsVsAI: 0,
+        lossesVsAI: 0,
+        winRateVsAI: 0,
+        tournamentIndex: 0,
+        recentFinishes: [],
+        recentOutcomes: [],
+      });
+    }
+  }
+
+  // Process all completed games (sorted chronologically)
+  const sortedGames = [...games].sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0));
+
+  for (const game of sortedGames) {
+    if (!Array.isArray(game.players) || game.players.length === 0) continue;
+
+    // Determine ranking order in this match by cumulativeScore descending
+    const sortedParticipants = [...game.players].sort(
+      (a, b) => (b.cumulativeScore || 0) - (a.cumulativeScore || 0)
+    );
+    const topScorer = sortedParticipants[0];
+    const winnerId = game.winnerId || topScorer?.id;
+    const winnerName = (game.winnerName || topScorer?.name || '').toLowerCase();
+
+    for (let i = 0; i < game.players.length; i++) {
+      const p = game.players[i];
+      if (!p || (!p.id && !p.name)) continue;
+
+      const key = (p.id || p.name).toLowerCase();
+      let stat = map.get(key);
+      if (!stat) {
+        stat = {
+          playerId: p.id || p.name,
+          playerName: p.name || 'Anonymous',
+          isAgent: Boolean(p.isAgent),
+          totalGames: 0,
+          totalWins: 0,
+          totalLosses: 0,
+          totalCumulativeScore: 0,
+          averageScore: 0,
+          highestMatchScore: 0,
+          overallWinRate: 0,
+          gamesVsHumans: 0,
+          winsVsHumans: 0,
+          lossesVsHumans: 0,
+          winRateVsHumans: 0,
+          gamesVsAI: 0,
+          winsVsAI: 0,
+          lossesVsAI: 0,
+          winRateVsAI: 0,
+          tournamentIndex: 0,
+          recentFinishes: [],
+          recentOutcomes: [],
+        };
+        map.set(key, stat);
+      }
+
+      // Check if p won this match
+      const isWinner =
+        p.id === winnerId ||
+        (p.name && p.name.toLowerCase() === winnerName) ||
+        (p === topScorer && (topScorer.cumulativeScore || 0) >= (game.winnerCumulativeScore || 1000));
+
+      // Finish position (1, 2, 3, 4)
+      const finishPos =
+        sortedParticipants.findIndex(
+          (cand) => cand.id === p.id || (cand.name && cand.name.toLowerCase() === p.name.toLowerCase())
+        ) + 1 || 4;
+
+      // Identify opponents
+      const opponents = game.players.filter(
+        (other) =>
+          other.id !== p.id &&
+          (!other.name || !p.name || other.name.toLowerCase() !== p.name.toLowerCase())
+      );
+
+      const hasHumanOpponents = opponents.some((other) => !other.isAgent);
+      const hasAIOpponents = opponents.some((other) => Boolean(other.isAgent));
+
+      // Update primary metrics
+      stat.totalGames += 1;
+      const score = typeof p.cumulativeScore === 'number' ? p.cumulativeScore : 0;
+      stat.totalCumulativeScore += score;
+      if (score > stat.highestMatchScore) {
+        stat.highestMatchScore = score;
+      }
+
+      if (isWinner) {
+        stat.totalWins += 1;
+      } else {
+        stat.totalLosses += 1;
+      }
+
+      // Performance vs Human opponents
+      if (hasHumanOpponents) {
+        stat.gamesVsHumans += 1;
+        if (isWinner) {
+          stat.winsVsHumans += 1;
+        } else {
+          // Check if game was won by a human opponent
+          const winningOpponent = opponents.find(
+            (o) =>
+              o.id === winnerId ||
+              (o.name && o.name.toLowerCase() === winnerName) ||
+              o === topScorer
+          );
+          if (winningOpponent && !winningOpponent.isAgent) {
+            stat.lossesVsHumans += 1;
+          }
+        }
+      }
+
+      // Performance vs AI opponents
+      if (hasAIOpponents) {
+        stat.gamesVsAI += 1;
+        if (isWinner) {
+          stat.winsVsAI += 1;
+        } else {
+          // Check if game was won by an AI opponent
+          const winningOpponent = opponents.find(
+            (o) =>
+              o.id === winnerId ||
+              (o.name && o.name.toLowerCase() === winnerName) ||
+              o === topScorer
+          );
+          if (winningOpponent && winningOpponent.isAgent) {
+            stat.lossesVsAI += 1;
+          }
+        }
+      }
+
+      // Recent form
+      stat.recentFinishes.push(finishPos);
+      stat.recentOutcomes.push(isWinner ? 'W' : 'L');
+      if (stat.recentFinishes.length > 8) {
+        stat.recentFinishes = stat.recentFinishes.slice(-8);
+        stat.recentOutcomes = stat.recentOutcomes.slice(-8);
+      }
+    }
+  }
+
+  // Calculate percentages and tournament composite index
+  const results: LeaderboardPlayerStats[] = Array.from(map.values()).map((stat) => {
+    const avg = stat.totalGames > 0 ? Math.round(stat.totalCumulativeScore / stat.totalGames) : 0;
+    const winRate =
+      stat.totalGames > 0 ? Number(((stat.totalWins / stat.totalGames) * 100).toFixed(1)) : 0;
+    const humanWinRate =
+      stat.gamesVsHumans > 0
+        ? Number(((stat.winsVsHumans / stat.gamesVsHumans) * 100).toFixed(1))
+        : 0;
+    const aiWinRate =
+      stat.gamesVsAI > 0
+        ? Number(((stat.winsVsAI / stat.gamesVsAI) * 100).toFixed(1))
+        : 0;
+
+    // Composite Tournament Index: score * (1 + winRate / 100)
+    const index = Math.round(stat.totalCumulativeScore * (1 + winRate / 100));
+
+    return {
+      ...stat,
+      averageScore: avg,
+      overallWinRate: winRate,
+      winRateVsHumans: humanWinRate,
+      winRateVsAI: aiWinRate,
+      tournamentIndex: index,
+    };
+  });
+
+  // Default sorting: Total Cumulative Score descending, then Overall Win %
+  results.sort((a, b) => {
+    if (b.totalCumulativeScore !== a.totalCumulativeScore) {
+      return b.totalCumulativeScore - a.totalCumulativeScore;
+    }
+    return b.overallWinRate - a.overallWinRate;
+  });
+
+  return results;
 }

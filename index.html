@@ -3,6 +3,102 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <script>
+      (function() {
+        // AI Studio Environment: HMR is disabled by system policy.
+        // Intercept Vite HMR client WebSocket connections to prevent connection attempt errors.
+        var NativeWebSocket = window.WebSocket;
+        if (NativeWebSocket) {
+          window.WebSocket = function(url, protocols) {
+            var isViteHmr = false;
+            try {
+              if (protocols === 'vite-hmr') isViteHmr = true;
+              if (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1) isViteHmr = true;
+              if (typeof url === 'string' && (url.indexOf('vite-hmr') !== -1 || url.indexOf('token=') !== -1 || url.indexOf('@vite') !== -1)) {
+                if (protocols === 'vite-hmr') isViteHmr = true;
+              }
+            } catch (e) {}
+
+            if (isViteHmr) {
+              // Return dummy connected WebSocket for Vite HMR client to prevent error/rejection
+              var listeners = {};
+              return {
+                url: url,
+                readyState: 1, // WebSocket.OPEN
+                CONNECTING: 0,
+                OPEN: 1,
+                CLOSING: 2,
+                CLOSED: 3,
+                send: function() {},
+                close: function() {},
+                addEventListener: function(type, fn) {
+                  if (!listeners[type]) listeners[type] = [];
+                  listeners[type].push(fn);
+                },
+                removeEventListener: function(type, fn) {
+                  if (!listeners[type]) return;
+                  listeners[type] = listeners[type].filter(function(cb) { return cb !== fn; });
+                },
+                dispatchEvent: function() { return true; }
+              };
+            }
+
+            return new NativeWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = NativeWebSocket.prototype;
+          window.WebSocket.CONNECTING = NativeWebSocket.CONNECTING;
+          window.WebSocket.OPEN = NativeWebSocket.OPEN;
+          window.WebSocket.CLOSING = NativeWebSocket.CLOSING;
+          window.WebSocket.CLOSED = NativeWebSocket.CLOSED;
+        }
+
+        // Suppress any remaining Vite HMR console error logs or window events
+        var origConsoleError = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var str = args.join(' ');
+          if (
+            str.indexOf('[vite]') !== -1 ||
+            str.indexOf('@vite/client') !== -1 ||
+            str.indexOf('createWebSocketModuleRunnerTransport') !== -1 ||
+            str.indexOf('WebSocket closed without opened') !== -1 ||
+            str.indexOf('failed to connect to websocket') !== -1
+          ) {
+            return;
+          }
+          return origConsoleError.apply(console, args);
+        };
+
+        window.addEventListener('error', function(event) {
+          var msg = (event && (event.message || event.filename || (event.error && event.error.stack))) || '';
+          msg = String(msg);
+          if (
+            msg.indexOf('WebSocket') !== -1 ||
+            msg.indexOf('@vite/client') !== -1 ||
+            msg.indexOf('createWebSocketModuleRunnerTransport') !== -1 ||
+            msg.indexOf('WebSocket closed without opened') !== -1
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = (event && (event.reason && (event.reason.stack || event.reason.message || event.reason))) || '';
+          reason = String(reason);
+          if (
+            reason.indexOf('WebSocket') !== -1 ||
+            reason.indexOf('@vite/client') !== -1 ||
+            reason.indexOf('createWebSocketModuleRunnerTransport') !== -1 ||
+            reason.indexOf('WebSocket closed without opened') !== -1
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        });
+      })();
+    </script>
     <title>Hazari Masters</title>
     <meta name="description" content="Real-time 4-player Hazari card game featuring intelligent AI agent substitution, dynamic seat swapping, dealing animations, and 1000-point championship rules." />
     <meta property="og:title" content="Hazari Masters" />
@@ -44,24 +140,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <script>
-      // Gracefully suppress Vite dev client HMR WebSocket errors in AI Studio iframe environment
-      window.addEventListener('error', function(event) {
-        var msg = event && event.message ? String(event.message) : '';
-        if (msg.includes('WebSocket') || msg.includes('@vite/client') || msg.includes('createWebSocketModuleRunnerTransport')) {
-          event.preventDefault();
-          event.stopPropagation();
-          return true;
-        }
-      }, true);
-      window.addEventListener('unhandledrejection', function(event) {
-        var reason = event && event.reason ? String(event.reason) : '';
-        if (reason.includes('WebSocket') || reason.includes('@vite/client') || reason.includes('createWebSocketModuleRunnerTransport')) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      });
-    </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased select-none overflow-x-hidden">
     <div id="root"></div>
