@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player, TableStatus, TrickPlay } from '../core/hazari/types';
 import { PlayingCard } from './PlayingCard';
+import { PlayerRankBadge } from './PlayerRankBadge';
 import { Bot, User, WifiOff, Crown, CheckCircle2, Clock } from 'lucide-react';
 
 interface PlayerSeatProps {
@@ -104,9 +105,10 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
         {/* Details & Points */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-bold text-slate-200 truncate flex items-center gap-0.5">
-              {player.name}
-              {isLocalPlayer && <span className="text-[9px] text-emerald-400 font-normal">(You)</span>}
+            <span className="text-[11px] font-bold text-slate-200 truncate flex items-center gap-1">
+              <span className="truncate">{player.name}</span>
+              {isLocalPlayer && <span className="text-[9px] text-emerald-400 font-normal shrink-0">(You)</span>}
+              <PlayerRankBadge score={player.cumulativeScore} size="xs" showLabel={false} className="shrink-0" />
             </span>
             <div className="flex items-center gap-1 shrink-0">
               {winsCount > 0 && (

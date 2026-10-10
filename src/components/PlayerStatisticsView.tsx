@@ -87,6 +87,17 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
     };
 
     const timelineData: { match: string; score: number; winnerScore: number; date: string }[] = [];
+    let totalHandsCount = 0;
+    let totalHandPoints = 0;
+    let highestSingleHandScore = 0;
+    const handScoresTimeline: {
+      match: string;
+      avgHandScore: number;
+      matchScore: number;
+      rounds: number;
+      benchmark: number;
+      date: string;
+    }[] = [];
 
     // Track strategies
     const strategyWins: Record<string, { wins: number; total: number }> = {
@@ -145,6 +156,37 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
       if (score > highestScore) highestScore = score;
       scores.push(score);
 
+      // Hand scores calculation across all rounds/deals
+      const gameHandsCount = game.roundsHistory && game.roundsHistory.length > 0 ? game.roundsHistory.length : 1;
+      let userHandPointsInGame = 0;
+
+      if (game.roundsHistory && game.roundsHistory.length > 0) {
+        game.roundsHistory.forEach((r) => {
+          totalHandsCount += 1;
+          const userScoreObj = r.playerScores?.find(
+            (ps) => ps.playerName === (userPlayer?.name || currentUser.username)
+          );
+          const handPts = userScoreObj ? userScoreObj.roundScore : (filterScope === 'me' ? 0 : r.pointsAwarded);
+          userHandPointsInGame += handPts;
+          totalHandPoints += handPts;
+          if (handPts > highestSingleHandScore) highestSingleHandScore = handPts;
+        });
+      } else {
+        totalHandsCount += gameHandsCount;
+        userHandPointsInGame = score;
+        totalHandPoints += score;
+      }
+
+      const matchAvgHand = Math.round((userHandPointsInGame / Math.max(1, gameHandsCount)) * 10) / 10;
+      handScoresTimeline.push({
+        match: `M#${idx + 1}`,
+        avgHandScore: matchAvgHand,
+        matchScore: score,
+        rounds: gameHandsCount,
+        benchmark: 90,
+        date: new Date(game.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      });
+
       // Bucket distribution
       if (score < 300) scoreBuckets['< 300'] += 1;
       else if (score < 600) scoreBuckets['300 - 599'] += 1;
@@ -190,6 +232,7 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
 
     const winRatePct = totalPlayed > 0 ? Math.round((totalWon / totalPlayed) * 100) : 0;
     const avgScore = totalPlayed > 0 ? Math.round(totalScore / totalPlayed) : 0;
+    const avgHandScore = totalHandsCount > 0 ? Math.round((totalHandPoints / totalHandsCount) * 10) / 10 : 0;
 
     return {
       totalPlayed,
@@ -203,6 +246,10 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
       avgScore,
       highestScore,
       totalScore,
+      totalHandsCount,
+      avgHandScore,
+      highestSingleHandScore,
+      handScoresTimeline: handScoresTimeline.slice(-15),
       winLossData,
       distributionData,
       timelineData: timelineData.slice(-15),
@@ -392,8 +439,8 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
         </div>
       ) : (
         <>
-          {/* Key KPI Tiles */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Key KPI Tiles: Win/Loss Ratio, Avg Hand Score, and Scoring Trajectory */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
               <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
                 <Gamepad2 className="w-3.5 h-3.5 text-sky-400" />
@@ -401,6 +448,24 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
               </span>
               <div className="mt-1 font-mono text-2xl font-black text-slate-100">{stats.totalPlayed}</div>
               <span className="text-[10px] text-slate-500">Completed Sessions</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900 border border-emerald-500/30 shadow-md">
+              <span className="text-[10px] text-emerald-400 uppercase font-bold flex items-center gap-1">
+                <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Win/Loss Ratio</span>
+              </span>
+              <div className="mt-1 font-mono text-2xl font-black text-emerald-400">{stats.winRatePct}%</div>
+              <span className="text-[10px] text-slate-400 font-bold">{stats.totalWon}W / {stats.totalLoss}L</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900 border border-amber-500/30 shadow-md">
+              <span className="text-[10px] text-amber-400 uppercase font-bold flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <span>Avg Hand Score</span>
+              </span>
+              <div className="mt-1 font-mono text-2xl font-black text-amber-300">{stats.avgHandScore}</div>
+              <span className="text-[10px] text-slate-400">pts / round (deal)</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
@@ -415,37 +480,28 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
               <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
                 <Target className="w-3.5 h-3.5 text-rose-400" />
-                <span>Losses</span>
+                <span>Defeats</span>
               </span>
               <div className="mt-1 font-mono text-2xl font-black text-rose-400">{stats.totalLoss}</div>
-              <span className="text-[10px] text-slate-500">Defeats</span>
+              <span className="text-[10px] text-slate-500">Losses</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
               <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
-                <Percent className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Win Ratio</span>
+                <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                <span>Hands Played</span>
               </span>
-              <div className="mt-1 font-mono text-2xl font-black text-emerald-400">{stats.winRatePct}%</div>
-              <span className="text-[10px] text-slate-500">{stats.totalWon}W / {stats.totalLoss}L</span>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
-              <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>Avg Match Score</span>
-              </span>
-              <div className="mt-1 font-mono text-2xl font-black text-amber-400">{stats.avgScore}</div>
-              <span className="text-[10px] text-slate-500">pts / session</span>
+              <div className="mt-1 font-mono text-2xl font-black text-sky-300">{stats.totalHandsCount}</div>
+              <span className="text-[10px] text-slate-500">Total Deals Arranged</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
               <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
                 <Award className="w-3.5 h-3.5 text-purple-400" />
-                <span>Peak Score</span>
+                <span>Peak Hand Score</span>
               </span>
-              <div className="mt-1 font-mono text-2xl font-black text-purple-300">{stats.highestScore}</div>
-              <span className="text-[10px] text-slate-500">1000 pt threshold</span>
+              <div className="mt-1 font-mono text-2xl font-black text-purple-300">{stats.highestSingleHandScore}</div>
+              <span className="text-[10px] text-slate-500">360 pt max deal</span>
             </div>
           </div>
 
@@ -512,12 +568,69 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
               </div>
             </div>
 
-            {/* Score Distribution Histogram */}
+            {/* Average Hand Scores BarChart (Recharts) */}
             <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-400" />
+                    <span>Average Hand Scores (Per Deal)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Points won per 13-card deal across match sessions</p>
+                </div>
+                <span className="text-xs font-mono font-black text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-xl">
+                  {stats.avgHandScore} pts / hand avg
+                </span>
+              </div>
+
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.handScoresTimeline} margin={{ top: 15, right: 15, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="match" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={11} domain={[0, 360]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#020617',
+                        borderColor: '#334155',
+                        borderRadius: '12px',
+                        color: '#f8fafc',
+                        fontSize: '12px',
+                      }}
+                      formatter={(value: any) => [`${value} pts`, 'Avg Hand Score']}
+                    />
+                    <ReferenceLine
+                      y={90}
+                      label={{ value: '90 pt Hazari Par', fill: '#f59e0b', fontSize: 10, position: 'top' }}
+                      stroke="#f59e0b"
+                      strokeDasharray="4 4"
+                    />
+                    <Bar dataKey="avgHandScore" fill="#10b981" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-center">
+                <div className="p-2 rounded-xl bg-slate-950">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Total Hands Arranged</span>
+                  <div className="font-mono text-base font-black text-slate-200">{stats.totalHandsCount}</div>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-950">
+                  <span className="text-[10px] text-amber-400 uppercase font-bold">Peak Deal Score</span>
+                  <div className="font-mono text-base font-black text-amber-300">{stats.highestSingleHandScore} / 360</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row 2: Score Distribution Histogram & Performance Trend Timeline */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Score Distribution Histogram */}
+            <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <Award className="w-4 h-4 text-amber-400" />
                     <span>Score Distribution (Point Brackets)</span>
                   </h3>
                   <p className="text-[11px] text-slate-400">Frequency of final scores across points milestones</p>
@@ -557,29 +670,28 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* Charts Row 2: Performance Trend Timeline (Area Chart) */}
-          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-sky-400" />
-                  <span>Match-by-Match Score Trend</span>
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Point trajectory across the last {stats.timelineData.length} completed sessions
-                </p>
+            {/* Performance Trend Timeline (Area Chart) */}
+            <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-sky-400" />
+                    <span>Match-by-Match Score Trend</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Point trajectory across the last {stats.timelineData.length} completed sessions
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-400">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Score
+                  </span>
+                  <span className="flex items-center gap-1.5 text-amber-400 font-mono">
+                    --- 1000 pt Target
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="flex items-center gap-1.5 text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Score
-                </span>
-                <span className="flex items-center gap-1.5 text-amber-400 font-mono">
-                  --- 1000 pt Target
-                </span>
-              </div>
-            </div>
 
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -621,8 +733,9 @@ export const PlayerStatisticsView: React.FC<PlayerStatisticsViewProps> = ({ curr
               </ResponsiveContainer>
             </div>
           </div>
-        </>
-      )}
-    </div>
-  );
+        </div>
+      </>
+    )}
+  </div>
+);
 };

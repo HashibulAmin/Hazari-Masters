@@ -15,6 +15,7 @@ import { AIModelModal } from './AIModelModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
 import { TableChat } from './TableChat';
+import { UserPreferencesModal } from './UserPreferencesModal';
 import {
   Trophy,
   Activity,
@@ -28,8 +29,9 @@ import {
   Eye,
   MessageSquare,
   Sparkles,
+  Settings,
 } from 'lucide-react';
-import { sounds } from '../utils/soundEffects';
+import { useSoundManager } from '../hooks/useSoundManager';
 import { syncTableToFirestore, archiveCompletedGame, recordGameSessionOnWinner } from '../firebase/tableService';
 import { advanceMissionProgress } from '../services/dailyMissionsService';
 import { advanceArrangementGoals } from '../services/dailyChallengesService';
@@ -44,11 +46,21 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
     (state) => state.table
   );
   const { audioEnabled, userName, userId } = useAppSelector((state) => state.network);
+  const {
+    preferences,
+    toggleMaster,
+    playDeal,
+    playCardPlay,
+    playTrickWin,
+    playDeclare,
+    playVictory,
+  } = useSoundManager();
 
   const [showScoreboard, setShowScoreboard] = useState(false);
   const [showNetworkTest, setShowNetworkTest] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showAIModelModal, setShowAIModelModal] = useState(false);
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName);
   const [challengeNotification, setChallengeNotification] = useState<string | null>(null);
@@ -97,6 +109,32 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
     }
   }, [tableState, userSeatIndex, userId]);
 
+  // Audio triggers for critical game events (dealing, winning trick, victory)
+  const prevRoundRef = React.useRef<number>(tableState?.currentRound || 1);
+  React.useEffect(() => {
+    if (tableState && tableState.currentRound !== prevRoundRef.current) {
+      prevRoundRef.current = tableState.currentRound;
+      if (audioEnabled) playDeal();
+    }
+  }, [tableState?.currentRound, audioEnabled, playDeal]);
+
+  const prevTrickCountRef = React.useRef<number>(tableState?.tricksHistory?.length || 0);
+  React.useEffect(() => {
+    const count = tableState?.tricksHistory?.length || 0;
+    if (count > prevTrickCountRef.current) {
+      prevTrickCountRef.current = count;
+      if (audioEnabled) playTrickWin();
+    }
+  }, [tableState?.tricksHistory?.length, audioEnabled, playTrickWin]);
+
+  const prevStatusRef = React.useRef<string>(tableState?.status || '');
+  React.useEffect(() => {
+    if (tableState?.status === 'GAME_OVER' && prevStatusRef.current !== 'GAME_OVER') {
+      if (audioEnabled) playVictory();
+    }
+    prevStatusRef.current = tableState?.status || '';
+  }, [tableState?.status, audioEnabled, playVictory]);
+
   if (!tableState) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 gap-4">
@@ -121,6 +159,9 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
   const canPlayTrick = Boolean(isMyTurn && !playerSouth.hasPlayedCurrentTrick && localHand?.arrangedGroups);
 
   const handleLockInArrangement = (groups: HandGroups, strategy: ArrangementStrategy) => {
+    // Audio feedback for declaring/locking in arrangement
+    if (audioEnabled) playDeclare();
+
     // Check if player has any Trio in their arrangement for Daily Mission
     const hasTrio = [groups.group1, groups.group2, groups.group3].some(
       (grp) => grp && grp.length === 3 && grp[0].rank === grp[1].rank && grp[1].rank === grp[2].rank
@@ -148,7 +189,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
 
   const handlePlayTrick = () => {
     if (!canPlayTrick) return;
-    if (audioEnabled) sounds.playCardPlaySound();
+    if (audioEnabled) playCardPlay();
     // 1. Optimistic UI update
     dispatch(optimisticPlayTrick());
     // 2. Emit to server
@@ -156,12 +197,12 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
   };
 
   const handleStartDeal = () => {
-    if (audioEnabled) sounds.playDealSound();
+    if (audioEnabled) playDeal();
     dispatch({ type: 'socket/startDeal' });
   };
 
   const handleShuffleTable = () => {
-    if (audioEnabled) sounds.playDealSound();
+    if (audioEnabled) playDeal();
     dispatch({ type: 'socket/shuffleTable' });
   };
 
@@ -321,6 +362,14 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
             title={audioEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
           >
             {audioEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+          </button>
+
+          <button
+            onClick={() => setShowPreferencesModal(true)}
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-amber-400 border border-slate-700 transition"
+            title="User Preferences & Audio Settings"
+          >
+            <Settings className="w-4 h-4" />
           </button>
 
           {tableState.status === 'GAME_OVER' && (
@@ -511,6 +560,14 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
 
       {/* Real-time Table Chat Interface */}
       <TableChat />
+
+      {/* User Preferences & Audio Settings Modal */}
+      <UserPreferencesModal
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
+        currentUserScore={playerSouth?.cumulativeScore || 0}
+        currentUserName={userName}
+      />
     </div>
   );
 };

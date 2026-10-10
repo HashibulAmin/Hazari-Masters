@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { CompletedGameRecord, normalizeCompletedGameRecord } from '../firebase/tableService';
+import { CompletedGameRecord, normalizeCompletedGameRecord, deduplicateCompletedGames } from '../firebase/tableService';
 import {
   Trophy,
   Calendar,
@@ -19,6 +19,7 @@ import {
   Bot,
   User,
   Film,
+  Trash2,
 } from 'lucide-react';
 
 interface CompletedGamesListProps {
@@ -37,17 +38,22 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [filterText, setFilterText] = useState(searchQuery);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [isPurgingDuplicates, setIsPurgingDuplicates] = useState(false);
+  const [purgeSuccessMessage, setPurgeSuccessMessage] = useState<string | null>(null);
 
   // Directly fetch & subscribe to Firebase Firestore 'completed_games' collection
   const fetchGamesDirectly = async () => {
     setIsRefreshing(true);
     try {
       const snap = await getDocs(collection(db, 'completed_games'));
-      const list: CompletedGameRecord[] = [];
+      const rawList: CompletedGameRecord[] = [];
       snap.forEach((d) => {
-        list.push(normalizeCompletedGameRecord(d.data(), d.id));
+        rawList.push(normalizeCompletedGameRecord(d.data(), d.id));
       });
-      list.sort((a, b) => b.completedAt - a.completedAt);
+      rawList.sort((a, b) => b.completedAt - a.completedAt);
+      const list = deduplicateCompletedGames(rawList);
+      setDuplicateCount(Math.max(0, rawList.length - list.length));
       setGames(list);
       if (typeof window !== 'undefined') {
         localStorage.setItem('hazari_completed_games_cache', JSON.stringify(list));
@@ -59,7 +65,8 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
         const cached = localStorage.getItem('hazari_completed_games_cache');
         if (cached) {
           try {
-            setGames(JSON.parse(cached));
+            const parsed = JSON.parse(cached);
+            setGames(deduplicateCompletedGames(parsed));
           } catch {}
         }
       }
@@ -78,11 +85,13 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
     const unsubscribe = onSnapshot(
       gamesRef,
       (snapshot) => {
-        const list: CompletedGameRecord[] = [];
+        const rawList: CompletedGameRecord[] = [];
         snapshot.forEach((docSnap) => {
-          list.push(normalizeCompletedGameRecord(docSnap.data(), docSnap.id));
+          rawList.push(normalizeCompletedGameRecord(docSnap.data(), docSnap.id));
         });
-        list.sort((a, b) => b.completedAt - a.completedAt);
+        rawList.sort((a, b) => b.completedAt - a.completedAt);
+        const list = deduplicateCompletedGames(rawList);
+        setDuplicateCount(Math.max(0, rawList.length - list.length));
         setGames(list);
         setLoading(false);
         if (typeof window !== 'undefined') {
@@ -97,6 +106,79 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
 
     return () => unsubscribe();
   }, []);
+
+  const handlePurgeDuplicates = async () => {
+    setIsPurgingDuplicates(true);
+    try {
+      const snap = await getDocs(collection(db, 'completed_games'));
+      const rawList: { id: string; record: CompletedGameRecord }[] = [];
+      snap.forEach((d) => {
+        rawList.push({ id: d.id, record: normalizeCompletedGameRecord(d.data(), d.id) });
+      });
+
+      const retainedItems: { id: string; record: CompletedGameRecord }[] = [];
+      const toDeleteDocIds: string[] = [];
+
+      for (const item of rawList) {
+        const game = item.record;
+        const tableId = (game.tableId || 'main').toLowerCase().trim();
+        const winnerName = (game.winnerName || game.winnerId || 'winner').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        const winnerScore = Number(game.winnerCumulativeScore) || 0;
+        const gameTime = Number(game.completedAt) || 0;
+        const sessionNum = Number(game.sessionNumber) || 1;
+
+        let duplicateOf = -1;
+        for (let i = 0; i < retainedItems.length; i++) {
+          const kept = retainedItems[i].record;
+          const keptTable = (kept.tableId || 'main').toLowerCase().trim();
+          const keptWinner = (kept.winnerName || kept.winnerId || 'winner').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+          const keptScore = Number(kept.winnerCumulativeScore) || 0;
+          const keptTime = Number(kept.completedAt) || 0;
+          const keptSession = Number(kept.sessionNumber) || 1;
+
+          if (
+            (game.gameId && kept.gameId && game.gameId === kept.gameId) ||
+            (game.sessionId && kept.sessionId && game.sessionId === kept.sessionId) ||
+            (keptTable === tableId && keptWinner === winnerName && keptScore === winnerScore &&
+              (keptSession === sessionNum || Math.abs(gameTime - keptTime) <= 45 * 60 * 1000))
+          ) {
+            duplicateOf = i;
+            break;
+          }
+        }
+
+        if (duplicateOf === -1) {
+          retainedItems.push(item);
+        } else {
+          // Compare richness: delete the weaker one, retain the richer one
+          const keptItem = retainedItems[duplicateOf];
+          const keptRounds = keptItem.record.roundsHistory?.length || 0;
+          const itemRounds = item.record.roundsHistory?.length || 0;
+
+          if (itemRounds > keptRounds) {
+            toDeleteDocIds.push(keptItem.id);
+            retainedItems[duplicateOf] = item;
+          } else {
+            toDeleteDocIds.push(item.id);
+          }
+        }
+      }
+
+      for (const id of toDeleteDocIds) {
+        try {
+          await deleteDoc(doc(db, 'completed_games', id));
+        } catch {}
+      }
+
+      setPurgeSuccessMessage(`Cleaned ${toDeleteDocIds.length} duplicate entries from database.`);
+      setTimeout(() => setPurgeSuccessMessage(null), 5000);
+      await fetchGamesDirectly();
+    } catch (e) {
+      console.error('Error purging duplicates:', e);
+    } finally {
+      setIsPurgingDuplicates(false);
+    }
+  };
 
   // Sync prop searchQuery with filterText
   useEffect(() => {
@@ -205,8 +287,20 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
           />
         </div>
 
-        {/* View Mode & Refresh */}
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+        {/* View Mode, Purge Duplicates & Refresh */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+          {duplicateCount > 0 && (
+            <button
+              onClick={handlePurgeDuplicates}
+              disabled={isPurgingDuplicates}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition shadow"
+              title="Clean redundant duplicate documents from Firestore database"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isPurgingDuplicates ? 'Cleaning...' : `Purge ${duplicateCount} DB Duplicates`}</span>
+            </button>
+          )}
+
           <span className="text-[11px] text-slate-400 font-mono hidden md:inline">
             {filtered.length} Archived {filtered.length === 1 ? 'Match' : 'Matches'}
           </span>
@@ -251,6 +345,13 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
           </button>
         </div>
       </div>
+
+      {purgeSuccessMessage && (
+        <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{purgeSuccessMessage}</span>
+        </div>
+      )}
 
       {/* Loading state */}
       {loading ? (

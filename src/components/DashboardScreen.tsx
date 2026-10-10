@@ -33,7 +33,10 @@ import {
   Sparkles,
   Search,
   BarChart3,
+  Settings,
 } from 'lucide-react';
+import { PlayerRankBadge } from './PlayerRankBadge';
+import { UserPreferencesModal } from './UserPreferencesModal';
 
 interface DashboardScreenProps {
   currentUser: UserProfile;
@@ -56,10 +59,66 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [replayGame, setReplayGame] = useState<CompletedGameRecord | null>(null);
   const [showGlobalAIModal, setShowGlobalAIModal] = useState(false);
   const [aiModalMode, setAiModalMode] = useState<'global' | 'user'>('global');
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 
   const isAdmin =
     currentUser.email === 'hasibul.amin.hemel@gmail.com' || currentUser.role === 'admin';
+
+  // Compute player total cumulative score across all historical games
+  const userCumulativeScore = React.useMemo(() => {
+    let total = 0;
+    completedGames.forEach((g) => {
+      const p = g.players?.find(
+        (pl) => pl.id === currentUser.uid || pl.name === currentUser.username
+      );
+      if (p && typeof p.cumulativeScore === 'number') {
+        total += p.cumulativeScore;
+      }
+    });
+    return total;
+  }, [completedGames, currentUser]);
+
+  // Compute player win/loss ratio and average hand scores for lobby visualization
+  const userMetrics = React.useMemo(() => {
+    let played = 0;
+    let won = 0;
+    let handScoresSum = 0;
+    let handScoresCount = 0;
+
+    completedGames.forEach((g) => {
+      const p = g.players?.find(
+        (pl) => pl.id === currentUser.uid || pl.name === currentUser.username
+      );
+      if (p) {
+        played++;
+        const isWinner = g.winnerId === currentUser.uid || g.winnerName === currentUser.username;
+        if (isWinner) won++;
+
+        if (p.roundScoresHistory && Array.isArray(p.roundScoresHistory)) {
+          p.roundScoresHistory.forEach((s) => {
+            if (typeof s === 'number') {
+              handScoresSum += s;
+              handScoresCount++;
+            }
+          });
+        }
+      }
+    });
+
+    const lost = Math.max(0, played - won);
+    const winRate = played > 0 ? Math.round((won / played) * 100) : 0;
+    const avgHandScore = handScoresCount > 0 ? Math.round(handScoresSum / handScoresCount) : 0;
+
+    return {
+      played,
+      won,
+      lost,
+      winRate,
+      avgHandScore,
+      handScoresCount,
+    };
+  }, [completedGames, currentUser]);
 
   useEffect(() => {
     const unsubRunning = subscribeToRunningTables((tables) => {
@@ -142,14 +201,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             <span className="hidden md:inline">My AI Model</span>
           </button>
 
-          {/* User Profile Capsule */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
-            <div className="w-7 h-7 rounded-lg bg-emerald-950 border border-emerald-500/40 flex items-center justify-center text-xs font-bold text-emerald-400">
+          {/* User Profile Capsule with Rank Badge next to username */}
+          <div className="flex items-center gap-2.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
+            <div className="w-8 h-8 rounded-lg bg-emerald-950 border border-emerald-500/40 flex items-center justify-center text-xs font-black text-emerald-400">
               {currentUser.username.slice(0, 1).toUpperCase()}
             </div>
             <div className="text-left hidden sm:block">
-              <div className="text-xs font-bold text-slate-200 flex items-center gap-1">
+              <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                 <span>{currentUser.username}</span>
+                {/* Visual Rank Badge (Bronze, Silver, Gold, Platinum, Master) based on cumulative score */}
+                <PlayerRankBadge score={userCumulativeScore} size="xs" showLabel={true} />
                 {isAdmin && (
                   <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 rounded font-normal">
                     Admin
@@ -161,9 +222,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                   </span>
                 )}
               </div>
-              <span className="text-[10px] text-slate-500">{currentUser.email || 'Guest Player'}</span>
+              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                <span className="text-amber-400 font-bold">{userCumulativeScore.toLocaleString()} pts</span>
+                <span>•</span>
+                <span className="text-slate-500">{currentUser.email || 'Guest Player'}</span>
+              </div>
             </div>
           </div>
+
+          {/* User Preferences & Audio Settings Button */}
+          <button
+            onClick={() => setShowPreferencesModal(true)}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-amber-400 transition"
+            title="User Preferences & Audio Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
 
           {/* Logout */}
           <button
@@ -229,6 +303,73 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
         {/* Daily Tournament Missions Component */}
         <DailyMissionsCard userId={currentUser.uid} userName={currentUser.username} />
+
+        {/* Player Career Performance & Historical Stats Strip */}
+        <div className="p-4 rounded-3xl bg-slate-900/90 border border-emerald-950/80 shadow-xl flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            {/* Rank Status */}
+            <div className="flex items-center gap-3">
+              <div className="text-left">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Lobby Rank</span>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <PlayerRankBadge score={userCumulativeScore} size="sm" showLabel={true} />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-8 w-px bg-slate-800 hidden sm:block" />
+
+            {/* Historical Win/Loss Ratio */}
+            <div className="text-left">
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider flex items-center gap-1">
+                <Trophy className="w-3 h-3 text-amber-400" />
+                <span>Win / Loss Record</span>
+              </span>
+              <div className="mt-0.5 flex items-baseline gap-2 font-mono">
+                <span className="text-base font-black text-emerald-400">{userMetrics.won}W</span>
+                <span className="text-slate-600 font-bold">/</span>
+                <span className="text-base font-black text-rose-400">{userMetrics.lost}L</span>
+                <span className="text-xs font-bold text-slate-400 ml-1">({userMetrics.winRate}% Win Rate)</span>
+              </div>
+            </div>
+
+            <div className="h-8 w-px bg-slate-800 hidden sm:block" />
+
+            {/* Average Hand Score */}
+            <div className="text-left">
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider flex items-center gap-1">
+                <Award className="w-3 h-3 text-sky-400" />
+                <span>Average Hand Score</span>
+              </span>
+              <div className="mt-0.5 flex items-baseline gap-1.5 font-mono">
+                <span className="text-base font-black text-sky-300">{userMetrics.avgHandScore} pts</span>
+                <span className="text-[11px] text-slate-500 font-sans">/ 13-card deal</span>
+              </div>
+            </div>
+
+            <div className="h-8 w-px bg-slate-800 hidden md:block" />
+
+            {/* Cumulative Career Score */}
+            <div className="text-left hidden md:block">
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-purple-400" />
+                <span>Career Score</span>
+              </span>
+              <div className="mt-0.5 font-mono text-base font-black text-amber-300">
+                {userCumulativeScore.toLocaleString()} pts
+              </div>
+            </div>
+          </div>
+
+          {/* Action button to switch to Recharts Analytics Tab */}
+          <button
+            onClick={() => setActiveTab('stats')}
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition hover:scale-102"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>View Full Recharts Analytics</span>
+          </button>
+        </div>
 
         {/* Tab Selector & Search Filter */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -484,6 +625,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         isOpen={Boolean(replayGame)}
         onClose={() => setReplayGame(null)}
         gameRecord={replayGame}
+      />
+
+      {/* User Preferences & Audio Settings Modal */}
+      <UserPreferencesModal
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
+        currentUserScore={userCumulativeScore}
+        currentUserName={currentUser.username}
       />
     </div>
   );

@@ -34,6 +34,7 @@ const gamePipeline = new GameDataPipeline((updatedMeta) => {
 
 // Global table storage (tableId -> TableInstance)
 const tables = new Map<string, TableInstance>();
+const serverArchivedGameKeys = new Set<string>();
 
 function getOrCreateTable(tableId: string = 'main', tableName: string = 'Hazari High Roller Table'): TableInstance {
   if (!tables.has(tableId)) {
@@ -45,6 +46,16 @@ function getOrCreateTable(tableId: string = 'main', tableName: string = 'Hazari 
         broadcastTableUpdate(tableId, tableState, privateHands);
       },
       async (tableState, winnerSeat, hands, strategies) => {
+        // Game Finished: only called when the tournament game has an actual winner
+        const totalWins = tableState.seatWins ? tableState.seatWins.reduce((a, b) => a + b, 0) : 1;
+        const champion = tableState.players[winnerSeat];
+        const archiveKey = `${tableId}_s${totalWins}_r${tableState.currentRound}_w${winnerSeat}_sc${champion?.cumulativeScore || 0}`;
+
+        if (serverArchivedGameKeys.has(archiveKey)) {
+          return;
+        }
+        serverArchivedGameKeys.add(archiveKey);
+
         // Send finished game data to sequential training pipeline
         const record = gamePipeline.ingestFinishedGame(tableState, winnerSeat, hands, strategies);
         io.to(tableId).emit('pipeline:game_recorded', {
@@ -52,12 +63,22 @@ function getOrCreateTable(tableId: string = 'main', tableName: string = 'Hazari 
           pipelineStatus: gamePipeline.getPipelineStatus(),
         });
 
-        // Archive completed game session to Firestore so completed_games has all round scores and table is closed
+        // Archive completed game session to Firestore once
         try {
           await archiveCompletedGame(tableState, 'system_all_agents');
         } catch (err) {
           console.warn('Auto-archive completed game notice:', err);
         }
+      },
+      (tableState, winnerSeat, hands, strategies) => {
+        // Intermediate round training: ingest into pipeline without archiving to database
+        try {
+          const record = gamePipeline.ingestFinishedGame(tableState, winnerSeat, hands, strategies);
+          io.to(tableId).emit('pipeline:game_recorded', {
+            record,
+            pipelineStatus: gamePipeline.getPipelineStatus(),
+          });
+        } catch {}
       }
     );
     tables.set(tableId, instance);

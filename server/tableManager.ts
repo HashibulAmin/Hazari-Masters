@@ -42,7 +42,10 @@ export class TableInstance {
   public playerHands: Map<number, InternalPlayerHand> = new Map();
   public playerStrategies: Map<number, ArrangementStrategy> = new Map();
   public chatMessages: TableChatMessage[] = [];
+  public spectators: Map<string, { socketId: string; userId: string; userName: string; joinedAt: number }> = new Map();
   private timerRef: NodeJS.Timeout | null = null;
+  private roundSummaryNextDealTimer: NodeJS.Timeout | null = null;
+  private autoFinishTimer: NodeJS.Timeout | null = null;
   private onStateChangeCallback: (state: TableState, privateHands: Map<number, InternalPlayerHand>) => void;
   private onGameFinishedCallback?: (
     state: TableState,
@@ -50,6 +53,13 @@ export class TableInstance {
     hands: Map<number, InternalPlayerHand>,
     strategies: Map<number, ArrangementStrategy>
   ) => void;
+  private onRoundCompletedCallback?: (
+    state: TableState,
+    winnerSeat: number,
+    hands: Map<number, InternalPlayerHand>,
+    strategies: Map<number, ArrangementStrategy>
+  ) => void;
+  private hasArchivedFinishedGame: boolean = false;
   private persistenceFilePath: string;
 
   constructor(
@@ -61,11 +71,18 @@ export class TableInstance {
       winnerSeat: number,
       hands: Map<number, InternalPlayerHand>,
       strategies: Map<number, ArrangementStrategy>
+    ) => void,
+    onRoundCompleted?: (
+      state: TableState,
+      winnerSeat: number,
+      hands: Map<number, InternalPlayerHand>,
+      strategies: Map<number, ArrangementStrategy>
     ) => void
   ) {
     this.persistenceFilePath = path.join(process.cwd(), 'data', `.hazari_table_${tableId}.json`);
     this.onStateChangeCallback = onStateChange;
     this.onGameFinishedCallback = onGameFinished;
+    this.onRoundCompletedCallback = onRoundCompleted;
 
     // Initialize 4 seats with AI agents with dynamic random names
     const usedNames = new Set<string>();
@@ -222,6 +239,122 @@ export class TableInstance {
     }
   }
 
+  public addSpectator(socketId: string, userId: string, userName: string) {
+    this.spectators.set(socketId, { socketId, userId, userName, joinedAt: Date.now() });
+    if (this.autoFinishTimer) {
+      clearTimeout(this.autoFinishTimer);
+      this.autoFinishTimer = null;
+    }
+    // Real user is inspecting! Ensure agents are playing with time round by round
+    this.ensureAgentsPlayingWithTime();
+  }
+
+  public removeSpectator(socketId: string) {
+    this.spectators.delete(socketId);
+    this.checkAutoFinishIfNoUsersOnBoard();
+  }
+
+  public getSpectatorCount(): number {
+    return this.spectators.size;
+  }
+
+  public hasRealUserPresent(): boolean {
+    // 1. Any seated human player who is connected
+    const hasSeatedHuman = this.state.players.some((p) => !p.isAgent && p.connected !== false);
+    if (hasSeatedHuman) return true;
+
+    // 2. Any active spectator / inspector watching the table
+    if (this.spectators.size > 0) return true;
+
+    return false;
+  }
+
+  public ensureAgentsPlayingWithTime() {
+    const allAgents = this.state.players.every((p) => p.isAgent);
+    if (!allAgents) return;
+
+    if (this.state.status === 'COMPLETED_CLOSED') {
+      this.shuffleTable();
+      return;
+    }
+
+    if (this.state.status === 'GAME_OVER') {
+      // Tournament finished; let inspector review results or shuffle table
+      return;
+    }
+
+    if (this.state.status === 'WAITING') {
+      this.startDeal();
+      return;
+    }
+
+    if (this.state.status === 'ROUND_SUMMARY') {
+      if (!this.roundSummaryNextDealTimer) {
+        this.roundSummaryNextDealTimer = setTimeout(() => {
+          this.roundSummaryNextDealTimer = null;
+          if (this.state.status === 'ROUND_SUMMARY') {
+            this.state.currentRound += 1;
+            this.startDeal();
+          }
+        }, 3500);
+      }
+      return;
+    }
+
+    if (this.state.status === 'ARRANGING') {
+      this.state.players.forEach((p, seat) => {
+        if (p.isAgent && !p.isReady) {
+          setTimeout(() => {
+            const hand = this.playerHands.get(seat);
+            if (hand && !hand.isReady) {
+              const agentArr = arrangeAgentHand(hand.dealtCards, seat);
+              hand.arrangedGroups = agentArr.groups;
+              hand.isReady = true;
+              p.isReady = true;
+              this.playerStrategies.set(seat, agentArr.strategyUsed);
+              this.notify();
+              this.checkAllArranged();
+            }
+          }, 600 + seat * 300);
+        }
+      });
+      return;
+    }
+
+    if (this.state.status === 'PLAYING_TRICK') {
+      const turnSeat = this.state.currentTurnSeat;
+      if (this.state.players[turnSeat]?.isAgent) {
+        const alreadyPlayed = this.state.currentTrickPlays.some((tp) => tp.seatIndex === turnSeat);
+        if (!alreadyPlayed) {
+          setTimeout(() => {
+            if (this.state.status === 'PLAYING_TRICK' && this.state.currentTurnSeat === turnSeat) {
+              this.executeAgentPlay(turnSeat);
+            }
+          }, 800);
+        }
+      }
+      return;
+    }
+  }
+
+  public checkAutoFinishIfNoUsersOnBoard() {
+    if (this.state.status === 'COMPLETED_CLOSED' || this.state.status === 'GAME_OVER') return;
+
+    const allAgents = this.state.players.every((p) => p.isAgent);
+    if (!allAgents) return;
+
+    // Only when there is no user on board the table (no seated humans AND no inspecting spectators)
+    if (!this.hasRealUserPresent()) {
+      if (this.autoFinishTimer) clearTimeout(this.autoFinishTimer);
+      this.autoFinishTimer = setTimeout(() => {
+        this.autoFinishTimer = null;
+        if (!this.hasRealUserPresent() && this.state.players.every((p) => p.isAgent)) {
+          this.finishGameWithAllAgents();
+        }
+      }, 3000);
+    }
+  }
+
   public leaveSeat(userId: string): boolean {
     const seatIndex = this.state.players.findIndex((p) => p.id === userId);
     if (seatIndex === -1) return false;
@@ -234,18 +367,28 @@ export class TableInstance {
     agent.hasPlayedCurrentTrick = prev.hasPlayedCurrentTrick;
 
     this.state.players[seatIndex] = agent;
-    this.state.lastActionMessage = `${prev.name} left. ${agent.name} took over Seat ${seatIndex + 1}.`;
+    this.state.lastActionMessage = `${prev.name} left seat. ${agent.name} took over Seat ${seatIndex + 1}.`;
     this.notify();
 
-    // When the last user leaves and all seats are now AI agents, finish the tournament with AI agents and auto-complete
-    const hasAnyHuman = this.state.players.some((p) => !p.isAgent);
-    if (!hasAnyHuman) {
-      this.state.lastActionMessage = 'All human players have left. Completing tournament with AI agents...';
-      this.notify();
-      setTimeout(() => {
-        this.finishGameWithAllAgents();
-      }, 500);
-      return true;
+    // Check if there are any real users on board the table (seated or inspecting)
+    const hasAnyHumanSeated = this.state.players.some((p) => !p.isAgent);
+    if (!hasAnyHumanSeated) {
+      if (this.hasRealUserPresent()) {
+        // Real user is inspecting! Continue playing with time round by round!
+        this.state.lastActionMessage = `${prev.name} vacated seat. AI Agents continuing live tournament round-by-round for table inspectors...`;
+        this.notify();
+        this.ensureAgentsPlayingWithTime();
+      } else {
+        // No user on board the table at all - use instant game to finish and declare winner
+        this.state.lastActionMessage = 'No users on board table. Completing tournament with AI agents...';
+        this.notify();
+        setTimeout(() => {
+          if (!this.hasRealUserPresent() && this.state.players.every((p) => p.isAgent)) {
+            this.finishGameWithAllAgents();
+          }
+        }, 2000);
+        return true;
+      }
     }
 
     if (this.state.status === 'ARRANGING' && !agent.isReady) {
@@ -541,9 +684,9 @@ export class TableInstance {
     if (!this.state.trainingSamples) this.state.trainingSamples = [];
     this.state.trainingSamples.push(...roundTrainingSamples);
 
-    // Send data to sequential machine learning pipeline!
-    if (this.onGameFinishedCallback) {
-      this.onGameFinishedCallback(this.state, effectiveWinnerSeat, this.playerHands, this.playerStrategies);
+    // Send round data to machine learning pipeline for sequential training
+    if (this.onRoundCompletedCallback) {
+      this.onRoundCompletedCallback(this.state, effectiveWinnerSeat, this.playerHands, this.playerStrategies);
     }
 
     if (winCheck.isGameOver && winCheck.winnerSeatIndex !== null) {
@@ -556,7 +699,15 @@ export class TableInstance {
       this.state.lastActionMessage = `🎉 GAME OVER! ${champion.name} reaches ${champion.cumulativeScore} points and wins the 1000-point Hazari Tournament!`;
       this.notify();
 
-      // Requirement 5: If all players are agents and an agent won, auto-complete the game!
+      // Trigger finished game archive callback ONCE per championship match
+      if (!this.hasArchivedFinishedGame) {
+        this.hasArchivedFinishedGame = true;
+        if (this.onGameFinishedCallback) {
+          this.onGameFinishedCallback(this.state, winCheck.winnerSeatIndex, this.playerHands, this.playerStrategies);
+        }
+      }
+
+      // If all players are agents and an agent won, auto-complete the game!
       const hasRealUser = this.state.players.some((p) => !p.isAgent);
       if (!hasRealUser) {
         setTimeout(() => {
@@ -578,8 +729,10 @@ export class TableInstance {
     if (this.state.status === 'COMPLETED_CLOSED') {
       return { success: true };
     }
-    // Requirement 7: before completing a game the model would be train on the single game data
-    if (this.onGameFinishedCallback) {
+
+    // Only archive if not already archived
+    if (!this.hasArchivedFinishedGame && this.onGameFinishedCallback) {
+      this.hasArchivedFinishedGame = true;
       const winnerSeat = this.state.gameWinnerSeat ?? 0;
       this.onGameFinishedCallback(this.state, winnerSeat, this.playerHands, this.playerStrategies);
     }
@@ -592,6 +745,7 @@ export class TableInstance {
   }
 
   public shuffleTable() {
+    this.hasArchivedFinishedGame = false;
     this.state.currentRound = 1;
     this.state.gameWinnerSeat = null;
     this.state.roundsHistory = [];

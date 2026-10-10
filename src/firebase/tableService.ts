@@ -164,6 +164,93 @@ export function subscribeToRunningTables(
   );
 }
 
+// In-flight write deduplication cache
+const pendingSessionWrites = new Map<string, Promise<string>>();
+const completedSessionKeys = new Set<string>();
+
+// Deduplicate completed game records: merges duplicate entries created by redundant triggers or concurrent saves
+export function deduplicateCompletedGames(games: CompletedGameRecord[]): CompletedGameRecord[] {
+  if (!Array.isArray(games) || games.length === 0) return [];
+
+  // Group duplicate match sessions together
+  const mergedList: CompletedGameRecord[] = [];
+
+  for (const game of games) {
+    if (!game) continue;
+
+    const tableId = (game.tableId || 'main').toLowerCase().trim();
+    const winnerName = (game.winnerName || game.winnerId || 'winner').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+    const winnerScore = Number(game.winnerCumulativeScore) || 0;
+    const gameTime = Number(game.completedAt) || 0;
+    const sessionNum = Number(game.sessionNumber) || 1;
+
+    // Look for an existing match in mergedList that represents this same game
+    let matchedIndex = -1;
+    for (let i = 0; i < mergedList.length; i++) {
+      const existing = mergedList[i];
+      const existingTable = (existing.tableId || 'main').toLowerCase().trim();
+      const existingWinner = (existing.winnerName || existing.winnerId || 'winner').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+      const existingScore = Number(existing.winnerCumulativeScore) || 0;
+      const existingTime = Number(existing.completedAt) || 0;
+      const existingSessionNum = Number(existing.sessionNumber) || 1;
+
+      // Exact gameId or sessionId match
+      if (
+        (game.gameId && existing.gameId && game.gameId === existing.gameId) ||
+        (game.sessionId && existing.sessionId && game.sessionId === existing.sessionId)
+      ) {
+        matchedIndex = i;
+        break;
+      }
+
+      // Same table, same winner, same winning score
+      if (existingTable === tableId && existingWinner === winnerName && existingScore === winnerScore) {
+        // Same session number, or finished within a 45-minute window
+        const timeDiff = Math.abs(gameTime - existingTime);
+        if (existingSessionNum === sessionNum || timeDiff <= 45 * 60 * 1000) {
+          matchedIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (matchedIndex === -1) {
+      mergedList.push({ ...game });
+    } else {
+      // Merge records: preserve the richer dataset (fuller rounds history, training samples)
+      const existing = mergedList[matchedIndex];
+      const existingRounds = existing.roundsHistory?.length || 0;
+      const gameRounds = game.roundsHistory?.length || 0;
+
+      const base = gameRounds > existingRounds ? game : existing;
+      const secondary = gameRounds > existingRounds ? existing : game;
+
+      const mergedRecord: CompletedGameRecord = {
+        ...base,
+        // Preserve training samples from whichever has them
+        trainingSamples: (base.trainingSamples?.length || 0) >= (secondary.trainingSamples?.length || 0)
+          ? base.trainingSamples
+          : secondary.trainingSamples,
+        // If either was trained for global model, keep true
+        isTrainedForGlobalModel: Boolean(base.isTrainedForGlobalModel || secondary.isTrainedForGlobalModel),
+        // Preserve any user IDs trained for
+        trainedForUserIds: Array.from(new Set([...(base.trainedForUserIds || []), ...(secondary.trainedForUserIds || [])])),
+        // Merge closedBy identifiers
+        closedBy: Array.from(new Set([...(base.closedBy || []), ...(secondary.closedBy || [])])),
+        // Keep players with round scores history if available
+        players: base.players?.some((p) => p.roundScoresHistory && p.roundScoresHistory.length > 0)
+          ? base.players
+          : secondary.players || base.players,
+      };
+
+      mergedList[matchedIndex] = mergedRecord;
+    }
+  }
+
+  mergedList.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+  return mergedList;
+}
+
 // Subscribe to completed games archive
 export function subscribeToCompletedGames(
   callback: (games: CompletedGameRecord[]) => void
@@ -175,7 +262,7 @@ export function subscribeToCompletedGames(
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          callback(parsed);
+          callback(deduplicateCompletedGames(parsed));
         }
       }
     } catch {}
@@ -185,15 +272,17 @@ export function subscribeToCompletedGames(
   const q = query(gamesRef, limit(100));
 
   const processSnapshot = (snapshot: any) => {
-    const list: CompletedGameRecord[] = [];
+    const rawList: CompletedGameRecord[] = [];
     snapshot.forEach((docSnap: any) => {
-      list.push(docSnap.data() as CompletedGameRecord);
+      rawList.push(docSnap.data() as CompletedGameRecord);
     });
-    list.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    rawList.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
-    if (list.length === 0) {
+    if (rawList.length === 0) {
       seedInitialCompletedGame();
     }
+
+    const list = deduplicateCompletedGames(rawList);
 
     if (typeof window !== 'undefined') {
       try {
@@ -382,9 +471,21 @@ export async function recordGameSessionOnWinner(
 
   const totalSessionsSoFar = state.seatWins ? state.seatWins.reduce((a, b) => a + b, 0) : 1;
   const currentSessionNumber = sessionOverride?.sessionNumber ?? (totalSessionsSoFar > 0 ? totalSessionsSoFar : 1);
+  const championScore = champion?.cumulativeScore ?? 1000;
+  const cleanWinner = (champion.name || champion.id || 'winner').toLowerCase().replace(/[^a-z0-9]/g, '_');
 
-  const sessionId = `session_${state.tableId}_s${currentSessionNumber}_${Date.now()}`;
+  // Fully deterministic match session ID guarantees idempotency across server, client, and all-agent triggers
+  const sessionId = `game_${state.tableId || 'main'}_s${currentSessionNumber}_${cleanWinner}_sc${championScore}`;
   const gameId = sessionId;
+
+  // In-flight guard: prevent duplicate concurrent writes for the same match session
+  if (completedSessionKeys.has(sessionId)) {
+    return sessionId;
+  }
+  if (pendingSessionWrites.has(sessionId)) {
+    return pendingSessionWrites.get(sessionId)!;
+  }
+
   const gameRef = doc(db, 'completed_games', gameId);
 
   // Preserve every round that was played on this single game (Requirement 4)
@@ -503,28 +604,42 @@ export async function recordGameSessionOnWinner(
     tricksHistory: state.tricksHistory || [],
   };
 
-  try {
-    await setDoc(gameRef, record);
+  const writePromise = (async () => {
+    try {
+      await setDoc(gameRef, record, { merge: true });
+      completedSessionKeys.add(sessionId);
 
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('hazari_completed_games_cache');
-        const list = cached ? JSON.parse(cached) : [];
-        const filtered = list.filter((g: any) => g.gameId !== gameId);
-        filtered.unshift(record);
-        localStorage.setItem('hazari_completed_games_cache', JSON.stringify(filtered.slice(0, 100)));
-      } catch {}
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = localStorage.getItem('hazari_completed_games_cache');
+          const list = cached ? JSON.parse(cached) : [];
+          const filtered = list.filter((g: any) => g.gameId !== gameId);
+          filtered.unshift(record);
+          const deduplicated = deduplicateCompletedGames(filtered);
+          localStorage.setItem('hazari_completed_games_cache', JSON.stringify(deduplicated.slice(0, 100)));
+        } catch {}
+      }
+
+      return gameId;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `completed_games/${gameId}`);
+      return gameId;
+    } finally {
+      pendingSessionWrites.delete(sessionId);
     }
+  })();
 
-    return gameId;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `completed_games/${gameId}`);
-    return gameId;
-  }
+  pendingSessionWrites.set(sessionId, writePromise);
+  return writePromise;
 }
 
 // Archive a finished game with complete round-by-round points and close table
 export async function archiveCompletedGame(state: TableState, closedByUserId: string): Promise<string> {
+  // Only archive when game has legitimately concluded with a champion
+  if (state.status !== 'GAME_OVER' && state.status !== 'COMPLETED_CLOSED') {
+    return '';
+  }
+
   const gameId = await recordGameSessionOnWinner(state, closedByUserId);
   try {
     // Mark table as completed/closed
@@ -636,18 +751,18 @@ export async function fetchAllCompletedGamesFromFirebase(): Promise<CompletedGam
   const gamesRef = collection(db, 'completed_games');
   try {
     const snap = await getDocs(query(gamesRef, limit(100)));
-    const list: CompletedGameRecord[] = [];
+    const rawList: CompletedGameRecord[] = [];
     snap.forEach((docSnap) => {
-      list.push(docSnap.data() as CompletedGameRecord);
+      rawList.push(docSnap.data() as CompletedGameRecord);
     });
-    list.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
-    return list;
+    rawList.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    return deduplicateCompletedGames(rawList);
   } catch (error) {
     console.warn('Error fetching all completed games from Firebase:', error);
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem('hazari_completed_games_cache');
-        if (cached) return JSON.parse(cached);
+        if (cached) return deduplicateCompletedGames(JSON.parse(cached));
       } catch {}
     }
     return [];
