@@ -1,6 +1,7 @@
 import React from 'react';
 import { TableState } from '../core/hazari/types';
 import { Trophy, Bot, User, CheckCircle2, ArrowLeft, Award, RotateCcw, Activity, Brain, Cpu, Sparkles, Layers } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface ScoreboardModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
   tableState,
   userSeatIndex,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const sortedPlayers = [...tableState.players].sort((a, b) => b.cumulativeScore - a.cumulativeScore);
@@ -35,17 +37,17 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
             <button
               onClick={onClose}
               className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1 text-xs font-semibold"
-              title="Back to Table"
+              title={t('back_to_table', 'Back to Table')}
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span>{t('back', 'Back')}</span>
             </button>
             <div>
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-amber-400" />
-                <span>Hazari Championship Board</span>
+                <span>{t('scoreboard_title', 'Hazari Championship Board')}</span>
               </h2>
-              <p className="text-[11px] text-slate-400">Target: 1000 points. Multi-round championship history.</p>
+              <p className="text-[11px] text-slate-400">{t('scoreboard_subtitle', 'Target: 1000 points. Multi-round championship history.')}</p>
             </div>
           </div>
           <button
@@ -169,7 +171,7 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
                 </p>
               </div>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                {tableState.roundsHistory?.length || 0} Rounds Saved
+                {tableState.roundsHistory?.length || 0} {t('rounds_saved', 'Rounds Saved')}
               </span>
             </div>
 
@@ -179,11 +181,11 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
                   <table className="w-full text-left text-[11px]">
                     <thead className="bg-slate-900 border-b border-slate-800 text-slate-400 font-semibold uppercase text-[9px]">
                       <tr>
-                        <th className="py-2 px-3">Round</th>
-                        <th className="py-2 px-3">Round Winner</th>
-                        <th className="py-2 px-3">Points Won</th>
-                        <th className="py-2 px-3">All Players Round Scores &amp; Strategy</th>
-                        <th className="py-2 px-3 text-right">ML Vectors</th>
+                        <th className="py-2 px-3">{t('round', 'Round')}</th>
+                        <th className="py-2 px-3">{t('round_winner', 'Round Winner')}</th>
+                        <th className="py-2 px-3">{t('points_won', 'Points Won')}</th>
+                        <th className="py-2 px-3">{t('scores_and_strategy', 'All Players Round Scores & Strategy')}</th>
+                        <th className="py-2 px-3 text-right">{t('ml_vectors', 'ML Vectors')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60 font-mono">
@@ -237,7 +239,7 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
             ) : (
               <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 text-center">
                 <p className="text-xs text-slate-400">
-                  Round 1 is in progress. Every round's score for each player, winning hand, strategy, and feature vectors will be recorded here and synchronized to Firebase.
+                  {t('round_in_progress', 'Round 1 is in progress. Every round\'s score for each player, winning hand, strategy, and feature vectors will be recorded here and synchronized to Firebase.')}
                 </p>
               </div>
             )}
@@ -253,7 +255,7 @@ export const ScoreboardModal: React.FC<ScoreboardModalProps> = ({
             onClick={onClose}
             className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition"
           >
-            Back to Table
+            {t('back_to_table', 'Back to Table')}
           </button>
         </div>
       </div>

@@ -14,6 +14,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { DashboardScreen } from './components/DashboardScreen';
 import { TableLayout } from './components/TableLayout';
 import { InviteNotificationToast } from './components/InviteNotificationToast';
+import { LanguageProvider } from './context/LanguageContext';
 
 function AppRouter() {
   const dispatch = useAppDispatch();
@@ -181,7 +182,9 @@ function AppRouter() {
 export default function App() {
   return (
     <Provider store={store}>
-      <AppRouter />
+      <LanguageProvider>
+        <AppRouter />
+      </LanguageProvider>
     </Provider>
   );
 }

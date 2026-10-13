@@ -7,12 +7,15 @@ import {
   UserProfile,
 } from '../firebase/authService';
 import { Sparkles, Trophy, LogIn, UserPlus, Play, AlertCircle, ShieldCheck } from 'lucide-react';
+import { LanguageSelector } from './LanguageSelector';
+import { useTranslation } from '../context/LanguageContext';
 
 interface AuthScreenProps {
   onAuthenticated: (profile: UserProfile, directToGame?: boolean) => void;
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -94,6 +97,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden text-slate-100">
+      {/* Top Floating Language Switcher */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSelector />
+      </div>
+
       {/* Background Ambience */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
@@ -108,10 +116,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
             </div>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-100 tracking-wide uppercase">
-            Hazari Masters
+            {t('brand_title', 'Hazari Masters')}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time 1000-Point Card Championship &amp; Multi-table Lobby
+            {t('auth_subtitle', 'Real-time 1000-Point Card Championship & Multi-table Lobby')}
           </p>
         </div>
 
@@ -128,7 +136,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Log In
+            {t('auth_sign_in', 'Log In')}
           </button>
           <button
             onClick={() => {
@@ -141,7 +149,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Create Account
+            {t('auth_sign_up', 'Create Account')}
           </button>
         </div>
 

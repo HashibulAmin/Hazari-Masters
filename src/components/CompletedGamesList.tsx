@@ -21,6 +21,7 @@ import {
   Film,
   Trash2,
 } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface CompletedGamesListProps {
   onSelectGame: (game: CompletedGameRecord) => void;
@@ -35,6 +36,7 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
   searchQuery = '',
   isAdmin = false,
 }) => {
+  const { t } = useTranslation();
   const [games, setGames] = useState<CompletedGameRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -282,7 +284,7 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by table, champion, or player..."
+            placeholder={t('search_matches_placeholder', 'Search by table, champion, or player...')}
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
@@ -299,12 +301,12 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
               title="Clean redundant duplicate documents from Firestore database (Admin only)"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>{isPurgingDuplicates ? 'Cleaning...' : `Purge ${duplicateCount} DB Duplicates`}</span>
+              <span>{isPurgingDuplicates ? 'Cleaning...' : `${t('purge_duplicates', 'Purge DB Duplicates')} (${duplicateCount})`}</span>
             </button>
           )}
 
           <span className="text-[11px] text-slate-400 font-mono hidden md:inline">
-            {filtered.length} Archived {filtered.length === 1 ? 'Match' : 'Matches'}
+            {filtered.length} {t('archived_matches', 'Archived Matches')}
           </span>
 
           {/* View Mode Toggle */}
@@ -319,7 +321,7 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
               title="Table View Format"
             >
               <LayoutList className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline text-[10px]">Table</span>
+              <span className="hidden sm:inline text-[10px]">{t('table_view', 'Table')}</span>
             </button>
             <button
               onClick={() => setViewMode('cards')}
@@ -331,7 +333,7 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
               title="Card Grid Format"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline text-[10px]">Cards</span>
+              <span className="hidden sm:inline text-[10px]">{t('card_view', 'Cards')}</span>
             </button>
           </div>
 
@@ -343,7 +345,7 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
             title="Reload from Firestore completed_games"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline">{t('refresh', 'Refresh')}</span>
           </button>
         </div>
       </div>
@@ -370,7 +372,7 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
             <Trophy className="w-7 h-7" />
           </div>
           <h3 className="text-base font-bold text-slate-200">
-            {filterText ? 'No Matches Found Matching Search' : 'No Completed Games In Firestore Yet'}
+            {filterText ? t('no_matches_found', 'No Matches Found Matching Search') : t('no_completed_yet', 'No Completed Games In Firestore Yet')}
           </h3>
           <p className="text-xs text-slate-400 max-w-sm">
             {filterText
@@ -383,7 +385,7 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
               className="mt-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg hover:scale-102"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Generate Sample Match in Firebase</span>
+              <span>{t('generate_sample_match', 'Generate Sample Match in Firebase')}</span>
             </button>
           )}
         </div>
@@ -394,14 +396,14 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
             <table className="w-full text-left text-xs text-slate-200">
               <thead className="bg-slate-950/90 border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                 <tr>
-                  <th className="py-3 px-4">Match / Table Name</th>
-                  <th className="py-3 px-4">Champion</th>
-                  <th className="py-3 px-4 text-center">Score</th>
-                  <th className="py-3 px-4 hidden md:table-cell">Standings &amp; Players</th>
-                  <th className="py-3 px-3 text-center hidden sm:table-cell">Rounds</th>
-                  <th className="py-3 px-4 hidden lg:table-cell">Completed Date</th>
-                  <th className="py-3 px-3 text-center">AI Flag</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-4">{t('match_table_header', 'Match / Table Name')}</th>
+                  <th className="py-3 px-4">{t('champion', 'Champion')}</th>
+                  <th className="py-3 px-4 text-center">{t('score', 'Score')}</th>
+                  <th className="py-3 px-4 hidden md:table-cell">{t('standings_players', 'Standings & Players')}</th>
+                  <th className="py-3 px-3 text-center hidden sm:table-cell">{t('round', 'Rounds')}</th>
+                  <th className="py-3 px-4 hidden lg:table-cell">{t('completed_date', 'Completed Date')}</th>
+                  <th className="py-3 px-3 text-center">{t('ai_flag', 'AI Flag')}</th>
+                  <th className="py-3 px-4 text-right">{t('action', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">

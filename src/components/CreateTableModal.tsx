@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../firebase/authService';
 import { sendGameInvite, searchUsers } from '../firebase/tableService';
 import { Sparkles, Users, UserPlus, Play, Clock, X, Search, Check, AlertCircle } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface CreateTableModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
   currentUser,
   onStartTable,
 }) => {
+  const { t } = useTranslation();
   const [tableName, setTableName] = useState(`${currentUser.username}'s Hazari Table`);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ uid: string; username: string; email: string | null }[]>([]);
@@ -123,8 +125,8 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
               🎴
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100">Create New Game Table</h2>
-              <p className="text-[11px] text-slate-400">Play with AI bots or invite online friends to compete</p>
+              <h2 className="text-base font-bold text-slate-100">{t('create_table_title', 'Create New Game Table')}</h2>
+              <p className="text-[11px] text-slate-400">{t('create_table_subtitle', 'Play with AI bots or invite online friends to compete')}</p>
             </div>
           </div>
           {!isWaitingForInvites && (
@@ -148,9 +150,9 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-slate-100">Waiting for Invited Players...</h3>
+                <h3 className="text-sm font-bold text-slate-100">{t('waiting_invites_title', 'Waiting for Invited Players...')}</h3>
                 <p className="text-xs text-slate-400 max-w-sm mt-1">
-                  Invites sent to {invitedUsers.map((u) => u.username).join(', ')}. If they reject or 60 seconds elapse, the game will automatically launch with AI agents filling remaining seats!
+                  {t('waiting_invites_desc', 'Invites sent. If they reject or 60 seconds elapse, AI agents will fill remaining seats!')}
                 </p>
               </div>
 
@@ -173,7 +175,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                 className="w-full mt-2 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg transition flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4 fill-slate-950" />
-                <span>Start Now with Available Seats &amp; Agents</span>
+                <span>{t('start_now_agents', 'Start Now with Available Seats & Agents')}</span>
               </button>
             </div>
           ) : (
@@ -181,13 +183,13 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
             <>
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                  Table Name
+                  {t('table_name_label', 'Table Name')}
                 </label>
                 <input
                   type="text"
                   value={tableName}
                   onChange={(e) => setTableName(e.target.value)}
-                  placeholder="e.g. Royal Hazari Room"
+                  placeholder={t('table_name_placeholder', 'e.g. Royal Hazari Room')}
                   className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none transition"
                 />
               </div>
@@ -196,7 +198,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Invite Online Friends (Optional)
+                    {t('invite_friends_label', 'Invite Online Friends (Optional)')}
                   </label>
                   <span className="text-[10px] text-slate-500">{invitedUsers.length}/3 invited</span>
                 </div>
@@ -206,7 +208,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by username or email..."
+                    placeholder={t('search_users_placeholder', 'Search by username or email...')}
                     className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 pl-9 text-xs text-white outline-none transition"
                   />
                   <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
@@ -226,7 +228,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                           {user.email && <span className="text-[10px] text-slate-500 ml-2">({user.email})</span>}
                         </div>
                         <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                          <UserPlus className="w-3 h-3" /> Invite
+                          <UserPlus className="w-3 h-3" /> {t('invite', 'Invite')}
                         </span>
                       </div>
                     ))}
@@ -255,7 +257,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
               </div>
 
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
-                Any seat not filled by human players will automatically be assigned to Hazari AI Agents with distinct persona strategies.
+                {t('ai_seats_notice', 'Any seat not filled by human players will automatically be assigned to Hazari AI Agents with distinct persona strategies.')}
               </div>
             </>
           )}
@@ -268,14 +270,14 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition"
             >
-              Cancel
+              {t('cancel', 'Cancel')}
             </button>
             <button
               onClick={handleCreate}
               className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg transition flex items-center gap-2"
             >
               <Play className="w-3.5 h-3.5 fill-slate-950" />
-              <span>{invitedUsers.length > 0 ? 'Send Invites & Launch' : 'Start Table (Solo + AI)'}</span>
+              <span>{invitedUsers.length > 0 ? t('send_invites_launch', 'Send Invites & Launch') : t('start_solo_ai', 'Start Table (Solo + AI)')}</span>
             </button>
           </div>
         )}

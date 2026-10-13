@@ -1,5 +1,6 @@
 import React from 'react';
 import { BookOpen } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface RulesModalProps {
   isOpen: boolean;
@@ -7,6 +8,7 @@ interface RulesModalProps {
 }
 
 export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -15,7 +17,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-base font-bold text-slate-100">Hazari Official Game Rules</h2>
+            <h2 className="text-base font-bold text-slate-100">{t('rules_title', 'Hazari Official Game Rules')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -27,28 +29,28 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs text-slate-300 leading-relaxed">
           <section className="p-3 rounded-2xl bg-slate-950 border border-slate-800">
-            <h3 className="font-bold text-emerald-400 text-sm mb-1">Objective</h3>
+            <h3 className="font-bold text-emerald-400 text-sm mb-1">{t('rules_objective_title', 'Objective')}</h3>
             <p>
-              &ldquo;Hazari&rdquo; means 1000 in Bengali. 4 players compete using a standard 52-card deck. The first player to reach or exceed <strong>1000 cumulative points</strong> is declared the champion!
+              {t('rules_objective_desc', '"Hazari" means 1000 in Bengali. 4 players compete using a standard 52-card deck. The first player to reach or exceed 1000 cumulative points is declared the champion!')}
             </p>
           </section>
 
           <section className="p-3 rounded-2xl bg-slate-950 border border-slate-800">
-            <h3 className="font-bold text-amber-400 text-sm mb-1">Card Point Values (360 pts per deck)</h3>
+            <h3 className="font-bold text-amber-400 text-sm mb-1">{t('card_point_values', 'Card Point Values (360 pts per deck)')}</h3>
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="font-bold text-slate-200">10 Points Each:</span>
+                <span className="font-bold text-slate-200">{t('ten_points_each', '10 Points Each')}:</span>
                 <p className="text-slate-400">A, K, Q, J, 10 (4 each = 200 pts)</p>
               </div>
               <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="font-bold text-slate-200">5 Points Each:</span>
+                <span className="font-bold text-slate-200">{t('five_points_each', '5 Points Each')}:</span>
                 <p className="text-slate-400">9, 8, 7, 6, 5, 4, 3, 2 (32 cards = 160 pts)</p>
               </div>
             </div>
           </section>
 
           <section className="p-3 rounded-2xl bg-slate-950 border border-slate-800">
-            <h3 className="font-bold text-sky-400 text-sm mb-1">Arrangement Hierarchy (Highest to Lowest)</h3>
+            <h3 className="font-bold text-sky-400 text-sm mb-1">{t('arrangement_hierarchy', 'Arrangement Hierarchy (Highest to Lowest)')}</h3>
             <ul className="space-y-1.5 mt-2">
               <li className="flex items-center justify-between p-1.5 rounded bg-slate-900">
                 <span className="font-bold text-slate-200">1. Troy (Trial)</span>

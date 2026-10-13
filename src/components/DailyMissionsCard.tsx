@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds } from '../utils/soundEffects';
+import { useTranslation } from '../context/LanguageContext';
 
 interface DailyMissionsCardProps {
   userId: string;
@@ -36,6 +37,7 @@ export const DailyMissionsCard: React.FC<DailyMissionsCardProps> = ({
   userName,
   audioEnabled = true,
 }) => {
+  const { t } = useTranslation();
   const [data, setData] = useState<DailyMissionsDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -126,14 +128,14 @@ export const DailyMissionsCard: React.FC<DailyMissionsCardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-100">
-                Daily Objectives
+                {t('daily_objectives', 'Daily Objectives')}
               </h3>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
-                {completedCount} / {totalMissions} Done
+                {completedCount} / {totalMissions} {t('done_badge', 'Done')}
               </span>
               {allCompleted && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5" /> All Claimed!
+                  <Sparkles className="w-2.5 h-2.5" /> {t('all_claimed', 'All Claimed!')}
                 </span>
               )}
             </div>
@@ -197,7 +199,7 @@ export const DailyMissionsCard: React.FC<DailyMissionsCardProps> = ({
 
                       {mission.isClaimed ? (
                         <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Claimed
+                          <CheckCircle2 className="w-3 h-3" /> {t('claimed', 'Claimed')}
                         </span>
                       ) : (
                         <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-300">
@@ -239,7 +241,7 @@ export const DailyMissionsCard: React.FC<DailyMissionsCardProps> = ({
                         className="mt-2.5 w-full py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-amber-400 hover:from-emerald-400 hover:to-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-1.5 animate-pulse"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>Claim Reward (+{mission.rewardChips} chips)</span>
+                        <span>{t('claim_reward', 'Claim Reward')} (+{mission.rewardChips} chips)</span>
                       </button>
                     )}
                   </div>

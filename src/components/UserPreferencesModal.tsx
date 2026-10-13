@@ -17,7 +17,9 @@ import {
   Layers,
   Settings,
   HelpCircle,
+  Globe,
 } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface UserPreferencesModalProps {
   isOpen: boolean;
@@ -43,8 +45,9 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
     playDeclare,
     playVictory,
   } = useSoundManager();
+  const { language, setLanguage, supportedLanguages, t } = useTranslation();
 
-  const [activeTab, setActiveTab] = useState<'audio' | 'rank' | 'rules'>('audio');
+  const [activeTab, setActiveTab] = useState<'audio' | 'language' | 'rank' | 'rules'>('audio');
 
   if (!isOpen) return null;
 
@@ -75,7 +78,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-black text-slate-100 uppercase tracking-wide">
-                User Preferences &amp; Settings
+                {t('modal_preferences_title', 'User Preferences & Settings')}
               </h2>
               <p className="text-xs text-slate-400">
                 Custom sound manager, audio feedback toggles, and player rank status
@@ -91,28 +94,39 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
         </div>
 
         {/* Tab Buttons */}
-        <div className="px-5 pt-3 pb-1 border-b border-slate-800/60 flex items-center gap-2 bg-slate-950/40">
+        <div className="px-5 pt-3 pb-1 border-b border-slate-800/60 flex items-center gap-2 bg-slate-950/40 overflow-x-auto">
           <button
             onClick={() => setActiveTab('audio')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               activeTab === 'audio'
                 ? 'bg-emerald-500 text-slate-950 shadow-md'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" />
-            <span>Audio &amp; Sound Manager</span>
+            <span>Audio &amp; Sound</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('language')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+              activeTab === 'language'
+                ? 'bg-emerald-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>{t('language', 'Language')}</span>
           </button>
           <button
             onClick={() => setActiveTab('rank')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               activeTab === 'rank'
                 ? 'bg-amber-500 text-slate-950 shadow-md'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <Trophy className="w-3.5 h-3.5" />
-            <span>Rank Progression</span>
+            <span>{t('pref_tab_rank', 'Rank Progression')}</span>
           </button>
         </div>
 
@@ -376,6 +390,56 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'language' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-xl">
+                    🌐
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-100 uppercase tracking-wide">
+                      {t('language', 'Language Settings')}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {t('select_language', 'Choose your preferred language across the entire game.')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {supportedLanguages.map((opt) => {
+                  const isSelected = opt.code === language;
+                  return (
+                    <button
+                      key={opt.code}
+                      onClick={() => setLanguage(opt.code)}
+                      className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
+                        isSelected
+                          ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg'
+                          : 'bg-slate-950 hover:bg-slate-800/70 border-slate-800 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl leading-none">{opt.flag}</span>
+                        <div>
+                          <div className="text-sm font-black text-white">{opt.nativeName}</div>
+                          <div className="text-xs text-slate-400">{opt.name} ({opt.code.toUpperCase()})</div>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/30 flex items-center justify-center text-emerald-400">
+                          <Check className="w-4 h-4 stroke-[3]" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

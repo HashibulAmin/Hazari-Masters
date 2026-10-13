@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TableState, TrickPlay } from '../core/hazari/types';
 import { PlayingCard } from './PlayingCard';
 import { Trophy, Flame, Play, Sparkles } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface TrickArenaProps {
   tableState: TableState;
@@ -15,6 +16,7 @@ export const TrickArena: React.FC<TrickArenaProps> = ({
   onStartDeal,
   canStartDeal,
 }) => {
+  const { t } = useTranslation();
   const { status, currentTrick, currentTrickPlays, tricksHistory, lastActionMessage } = tableState;
   const lastTrickResult = tricksHistory[tricksHistory.length - 1];
 
@@ -30,17 +32,17 @@ export const TrickArena: React.FC<TrickArenaProps> = ({
       <div className="relative z-10 flex items-center justify-between w-full px-4 text-xs font-semibold">
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-1 rounded-full bg-slate-900/80 border border-emerald-500/30 text-emerald-300 font-mono">
-            Round {tableState.currentRound}
+            {t('round', 'Round')} {tableState.currentRound}
           </span>
           <span className="px-2.5 py-1 rounded-full bg-slate-900/80 border border-amber-500/30 text-amber-300 font-mono">
-            Trick {currentTrick}/4
+            {t('trick_header', 'Trick')} {currentTrick}/4
           </span>
         </div>
 
         {totalPotPoints > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold font-mono animate-pulse">
             <Flame className="w-3.5 h-3.5 text-amber-400" />
-            <span>Pot: {totalPotPoints} pts</span>
+            <span>Pot: {totalPotPoints} {t('trick_points', 'pts')}</span>
           </div>
         )}
       </div>
@@ -53,7 +55,7 @@ export const TrickArena: React.FC<TrickArenaProps> = ({
               🎴
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-100">Hazari Championship Table</h3>
+              <h3 className="text-sm sm:text-base font-bold text-slate-100">{t('brand_title', 'Hazari Championship Table')}</h3>
               <p className="text-[11px] sm:text-xs text-slate-400 max-w-sm mt-0.5">
                 4 players, 13 cards each. First player to reach 1000 cumulative points wins the tournament.
               </p>
@@ -64,7 +66,7 @@ export const TrickArena: React.FC<TrickArenaProps> = ({
                 className="mt-1 flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 hover:from-emerald-400 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition"
               >
                 <Play className="w-4 h-4 fill-slate-950" />
-                <span>Start Deal</span>
+                <span>{t('start_deal', 'Start Deal')}</span>
               </button>
             )}
           </div>

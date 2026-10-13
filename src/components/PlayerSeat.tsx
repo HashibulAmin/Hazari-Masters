@@ -3,6 +3,7 @@ import { Player, TableStatus, TrickPlay } from '../core/hazari/types';
 import { PlayingCard } from './PlayingCard';
 import { PlayerRankBadge } from './PlayerRankBadge';
 import { Bot, User, WifiOff, Crown, CheckCircle2, Clock } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface PlayerSeatProps {
   player: Player;
@@ -35,6 +36,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
   onPlayTrick,
   winsCount = 0,
 }) => {
+  const { t } = useTranslation();
   const isSouth = position === 'south';
 
   return (
@@ -147,17 +149,17 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
             ) : status === 'ARRANGING' ? (
               player.isReady ? (
                 <span className="text-emerald-400 flex items-center gap-0.5 font-medium">
-                  <CheckCircle2 className="w-2.5 h-2.5" /> Ready (Up)
+                  <CheckCircle2 className="w-2.5 h-2.5" /> {t('ready', 'Ready (Up)')}
                 </span>
               ) : (
                 <span className="text-slate-400 flex items-center gap-0.5">
-                  <Clock className="w-2 h-2 animate-spin" /> Arranging...
+                  <Clock className="w-2 h-2 animate-spin" /> {t('waiting', 'Arranging...')}
                 </span>
               )
             ) : isCurrentTurn && status === 'PLAYING_TRICK' ? (
-              <span className="text-amber-300 font-bold animate-pulse">Playing turn...</span>
+              <span className="text-amber-300 font-bold animate-pulse">{t('your_turn', 'Playing turn...')}</span>
             ) : (
-              <span className="text-slate-500">{player.isAgent ? 'Agent' : 'Online'}</span>
+              <span className="text-slate-500">{player.isAgent ? 'AI Bot' : 'Online'}</span>
             )}
           </div>
         </div>
@@ -170,7 +172,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
             onClick={onPlayTrick}
             className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition animate-pulse"
           >
-            Play My Hand Now!
+            {t('play_trick', 'Play My Hand Now!')}
           </button>
         </div>
       )}
@@ -182,7 +184,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
             onClick={onTakeSeat}
             className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 hover:border-slate-500 transition"
           >
-            Take Seat {player.seatIndex + 1}
+            {t('take_seat', 'Take Seat')} {player.seatIndex + 1}
           </button>
         )}
 
@@ -192,7 +194,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
             className="text-[9px] px-1.5 py-0.5 rounded-md bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 transition"
             title="Step away and let an AI Agent play your hand"
           >
-            Let Agent Play
+            {t('leave_seat', 'Leave Seat')}
           </button>
         )}
       </div>

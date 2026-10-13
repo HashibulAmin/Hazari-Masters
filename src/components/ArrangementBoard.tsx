@@ -26,6 +26,7 @@ import {
   Cpu,
 } from 'lucide-react';
 import { sounds } from '../utils/soundEffects';
+import { useTranslation } from '../context/LanguageContext';
 
 interface ArrangementBoardProps {
   cards: Card[];
@@ -40,6 +41,7 @@ export const ArrangementBoard: React.FC<ArrangementBoardProps> = ({
   onLockIn,
   audioEnabled,
 }) => {
+  const { t } = useTranslation();
   const [group1, setGroup1] = useState<Card[]>([]);
   const [group2, setGroup2] = useState<Card[]>([]);
   const [group3, setGroup3] = useState<Card[]>([]);
@@ -258,7 +260,7 @@ export const ArrangementBoard: React.FC<ArrangementBoardProps> = ({
             title="Championship: Optimizes Expected Value & point dumping"
           >
             <Award className="w-3.5 h-3.5" />
-            <span>EV Grandmaster</span>
+            <span>{t('preset_optimal', 'EV Grandmaster')}</span>
           </button>
 
           <button
@@ -272,7 +274,7 @@ export const ArrangementBoard: React.FC<ArrangementBoardProps> = ({
             title="Aggressive: Breaks low trios/pairs to chase Straight Flushes and seize Trick 1"
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>Aggressive Lead</span>
+            <span>{t('preset_aggressive', 'Aggressive Lead')}</span>
           </button>
 
           <button
@@ -286,7 +288,7 @@ export const ArrangementBoard: React.FC<ArrangementBoardProps> = ({
             title="Defensive: Preserves pairs and shields 10-point cards from loss"
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>Point Shield</span>
+            <span>{t('preset_defensive', 'Point Shield')}</span>
           </button>
 
           <button
@@ -300,7 +302,7 @@ export const ArrangementBoard: React.FC<ArrangementBoardProps> = ({
             title="Balanced: Multi-trick threat distribution"
           >
             <Scale className="w-3.5 h-3.5" />
-            <span>Balanced</span>
+            <span>{t('preset_balanced', 'Balanced')}</span>
           </button>
 
           <button
@@ -323,7 +325,7 @@ export const ArrangementBoard: React.FC<ArrangementBoardProps> = ({
             }`}
           >
             {isLockedIn ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <ArrowUpCircle className="w-4 h-4 text-slate-950" />}
-            <span>{isLockedIn ? 'Locked In' : 'Declare UP'}</span>
+            <span>{isLockedIn ? 'Ready' : t('declare_up', 'Declare UP')}</span>
           </button>
         </div>
       </div>

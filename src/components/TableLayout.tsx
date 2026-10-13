@@ -36,12 +36,15 @@ import { useSoundManager } from '../hooks/useSoundManager';
 import { syncTableToFirestore, archiveCompletedGame, recordGameSessionOnWinner } from '../firebase/tableService';
 import { advanceMissionProgress } from '../services/dailyMissionsService';
 import { advanceArrangementGoals } from '../services/dailyChallengesService';
+import { LanguageSelector } from './LanguageSelector';
+import { useTranslation } from '../context/LanguageContext';
 
 interface TableLayoutProps {
   onBackToDashboard?: () => void;
 }
 
 export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) => {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { tableState, localHand, userSeatIndex, isChatVisible, unreadChatCount } = useAppSelector(
     (state) => state.table
@@ -140,7 +143,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 gap-4">
         <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
-        <p className="text-sm font-semibold text-slate-300">Connecting to Hazari Masters real-time table...</p>
+        <p className="text-sm font-semibold text-slate-300">{t('connecting_table', 'Connecting to Hazari Masters real-time table...')}</p>
       </div>
     );
   }
@@ -318,6 +321,9 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
         <div className="flex items-center gap-2">
           <PWAInstallButton />
 
+          {/* Language Switch Icon in Header */}
+          <LanguageSelector />
+
           <button
             onClick={() => dispatch(toggleChatVisibility())}
             className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition shadow-sm border ${
@@ -328,7 +334,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
             title={isChatVisible ? 'Close Table Chat' : 'Open Table Chat'}
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Chat</span>
+            <span className="hidden md:inline">{t('chat', 'Chat')}</span>
             {unreadChatCount > 0 && !isChatVisible && (
               <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
                 {unreadChatCount}
@@ -342,16 +348,16 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
             title="Offline AI Model & Data Pipeline"
           >
             <Brain className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden md:inline">AI Pipeline</span>
+            <span className="hidden md:inline">{t('ai_pipeline', 'AI Pipeline')}</span>
           </button>
 
           <button
             onClick={() => setShowScoreboard(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-amber-300 border border-amber-500/30 transition shadow-sm"
-            title="Scoreboard"
+            title={t('scoreboard', 'Scoreboard')}
           >
             <Trophy className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Scores</span>
+            <span className="hidden md:inline">{t('scores', 'Scores')}</span>
           </button>
 
           <button
@@ -360,13 +366,13 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
             title="Network & State Recovery Test Suite"
           >
             <Activity className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Network Tests</span>
+            <span className="hidden md:inline">{t('network_tests', 'Network Tests')}</span>
           </button>
 
           <button
             onClick={() => setShowRules(true)}
             className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
-            title="Hazari Rules"
+            title={t('rules', 'Hazari Rules')}
           >
             <BookOpen className="w-4 h-4" />
           </button>
@@ -374,7 +380,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
           <button
             onClick={() => dispatch(toggleAudio())}
             className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
-            title={audioEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
+            title={audioEnabled ? t('mute_sounds', 'Mute Sounds') : t('unmute_sounds', 'Unmute Sounds')}
           >
             {audioEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
           </button>
@@ -382,7 +388,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
           <button
             onClick={() => setShowPreferencesModal(true)}
             className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-amber-400 border border-slate-700 transition"
-            title="User Preferences & Audio Settings"
+            title={t('settings', 'User Preferences & Settings')}
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -394,7 +400,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg animate-pulse"
               >
                 <Shuffle className="w-3.5 h-3.5" />
-                <span>Shuffle Table</span>
+                <span>{t('shuffle_table', 'Shuffle Table')}</span>
               </button>
               {onBackToDashboard && (
                 <button
@@ -406,7 +412,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
                   title="Archive completed match to database and return to lobby"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Archive &amp; Close</span>
+                  <span>{t('archive_close', 'Archive & Close')}</span>
                 </button>
               )}
             </div>
@@ -440,27 +446,27 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
               </span>
-              <span className="uppercase tracking-wider text-[11px] text-emerald-300">Live Spectating</span>
+              <span className="uppercase tracking-wider text-[11px] text-emerald-300">{t('live_spectating', 'Live Spectating')}</span>
             </div>
 
             {/* Reassurance text */}
             <div className="flex items-center gap-1.5 text-slate-200">
               <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="font-bold text-emerald-100">Automated Finish Paused</span>
+              <span className="font-bold text-emerald-100">{t('auto_finish_paused', 'Automated Finish Paused')}</span>
               <span className="text-[11px] text-slate-300 hidden sm:inline">
-                — Your presence keeps the table in live round-by-round play (AI bots will not fast-forward or instant-finish)
+                {t('spectating_reassurance', '— Your presence keeps the table in live round-by-round play (AI bots will not fast-forward or instant-finish)')}
               </span>
             </div>
 
             {/* Real-time Spectator Count badge */}
             <div className="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 px-2 py-0.5 rounded-lg text-[11px] text-emerald-400 font-mono">
               <Eye className="w-3 h-3 text-emerald-400" />
-              <span>{(tableState.spectatorCount && tableState.spectatorCount > 0) ? tableState.spectatorCount : 1} watching live</span>
+              <span>{(tableState.spectatorCount && tableState.spectatorCount > 0) ? tableState.spectatorCount : 1} {t('spectators_watching', 'watching live')}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3 self-end md:self-center">
-            <span className="text-[11px] text-slate-400 hidden lg:inline">Click "Take Seat" on any seat below to join</span>
+            <span className="text-[11px] text-slate-400 hidden lg:inline">{t('click_take_seat_hint', 'Click "Take Seat" on any open seat to join the game')}</span>
             {onBackToDashboard && (
               <button
                 onClick={() => {
@@ -470,7 +476,7 @@ export const TableLayout: React.FC<TableLayoutProps> = ({ onBackToDashboard }) =
                 className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 hover:border-slate-500 shadow-sm"
               >
                 <ArrowLeft className="w-3 h-3" />
-                <span>Exit Inspector</span>
+                <span>{t('exit_inspector', 'Exit Inspector')}</span>
               </button>
             )}
           </div>

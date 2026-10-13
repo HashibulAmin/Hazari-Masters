@@ -37,6 +37,8 @@ import {
 } from 'lucide-react';
 import { PlayerRankBadge } from './PlayerRankBadge';
 import { UserPreferencesModal } from './UserPreferencesModal';
+import { LanguageSelector } from './LanguageSelector';
+import { useTranslation } from '../context/LanguageContext';
 
 interface DashboardScreenProps {
   currentUser: UserProfile;
@@ -51,6 +53,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onInspectTable,
   onLogout,
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'running' | 'completed' | 'history' | 'stats' | 'leaderboard'>('running');
   const [runningTables, setRunningTables] = useState<FirestoreTableSummary[]>([]);
   const [completedGames, setCompletedGames] = useState<CompletedGameRecord[]>([]);
@@ -160,18 +163,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-black tracking-wide text-slate-100 uppercase">
-                Hazari Masters
+                {t('brand_title', 'Hazari Masters')}
               </h1>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
-                1000 PTS
+                {t('target_score_badge', '1000 PTS')}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Tournament Lobby &amp; Match Center</p>
+            <p className="text-[11px] text-slate-400">{t('lobby_subtitle', 'Tournament Lobby & Match Center')}</p>
           </div>
         </div>
 
         {/* Header Right Actions */}
-        <div className="flex items-center gap-2.5 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Requirement 5: Global AI Pipeline button (ONLY visible to admin) */}
           {isAdmin && (
             <button
@@ -183,8 +186,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               title="Global AI Training Pipeline & Offline Model (Admin Only)"
             >
               <Brain className="w-4 h-4 text-purple-400" />
-              <span className="hidden md:inline">Global AI Pipeline</span>
-              <span className="text-[9px] bg-purple-500/30 px-1 rounded text-purple-200">Admin</span>
+              <span className="hidden md:inline">{t('global_ai_pipeline', 'Global AI Pipeline')}</span>
+              <span className="text-[9px] bg-purple-500/30 px-1 rounded text-purple-200">{t('admin', 'Admin')}</span>
             </button>
           )}
 
@@ -198,7 +201,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             title="My Personal Offline AI Model"
           >
             <Cpu className="w-4 h-4 text-emerald-400" />
-            <span className="hidden md:inline">My AI Model</span>
+            <span className="hidden md:inline">{t('my_ai_model', 'My AI Model')}</span>
           </button>
 
           {/* User Profile Capsule with Rank Badge next to username */}
@@ -213,12 +216,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <PlayerRankBadge score={userCumulativeScore} size="xs" showLabel={true} />
                 {isAdmin && (
                   <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 rounded font-normal">
-                    Admin
+                    {t('admin', 'Admin')}
                   </span>
                 )}
                 {currentUser.isGuest && (
                   <span className="text-[9px] bg-slate-800 text-slate-400 px-1 rounded font-normal">
-                    Guest
+                    {t('guest', 'Guest')}
                   </span>
                 )}
               </div>
@@ -230,11 +233,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             </div>
           </div>
 
+          {/* Language Switch Icon in Header */}
+          <LanguageSelector />
+
           {/* User Preferences & Audio Settings Button */}
           <button
             onClick={() => setShowPreferencesModal(true)}
             className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-amber-400 transition"
-            title="User Preferences & Audio Settings"
+            title={t('settings', 'User Preferences & Settings')}
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -246,7 +252,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               onLogout();
             }}
             className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-400 text-slate-400 border border-slate-700 transition"
-            title="Log Out"
+            title={t('logout', 'Log Out')}
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -395,7 +401,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Running Tables (Open Seats)</span>
+              <span>{t('tab_running_tables', 'Active Tables')}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                   activeTab === 'running' ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
@@ -414,7 +420,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               }`}
             >
               <Trophy className="w-4 h-4" />
-              <span>Completed Games Archive</span>
+              <span>{t('tab_completed_games', 'Completed Archive')}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                   activeTab === 'completed' ? 'bg-slate-950 text-amber-400' : 'bg-slate-800 text-slate-400'
@@ -433,7 +439,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               }`}
             >
               <Award className="w-4 h-4" />
-              <span>Tournament History</span>
+              <span>{t('tab_tournament_history', 'Tournament History')}</span>
             </button>
 
             <button
@@ -445,7 +451,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               }`}
             >
               <BarChart3 className="w-4 h-4" />
-              <span>Victory Analytics</span>
+              <span>{t('tab_victory_analytics', 'Victory Analytics')}</span>
             </button>
           </div>
 
@@ -454,7 +460,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Filter tables..."
+              placeholder={t('filter_tables_placeholder', 'Filter tables...')}
               className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-1.5 pl-8 text-xs text-white outline-none"
             />
             <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
