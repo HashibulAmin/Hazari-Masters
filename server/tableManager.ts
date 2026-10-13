@@ -148,6 +148,7 @@ export class TableInstance {
 
   private notify() {
     this.state.updatedAt = Date.now();
+    this.state.spectatorCount = this.spectators.size;
     this.savePersistedState();
     this.onStateChangeCallback(this.state, this.playerHands);
   }
@@ -241,16 +242,20 @@ export class TableInstance {
 
   public addSpectator(socketId: string, userId: string, userName: string) {
     this.spectators.set(socketId, { socketId, userId, userName, joinedAt: Date.now() });
+    this.state.spectatorCount = this.spectators.size;
     if (this.autoFinishTimer) {
       clearTimeout(this.autoFinishTimer);
       this.autoFinishTimer = null;
     }
+    this.notify();
     // Real user is inspecting! Ensure agents are playing with time round by round
     this.ensureAgentsPlayingWithTime();
   }
 
   public removeSpectator(socketId: string) {
     this.spectators.delete(socketId);
+    this.state.spectatorCount = this.spectators.size;
+    this.notify();
     this.checkAutoFinishIfNoUsersOnBoard();
   }
 
@@ -707,11 +712,13 @@ export class TableInstance {
         }
       }
 
-      // If all players are agents and an agent won, auto-complete the game!
-      const hasRealUser = this.state.players.some((p) => !p.isAgent);
+      // Only auto-complete if NO real user is present (no seated human AND no spectator inspecting)
+      const hasRealUser = this.hasRealUserPresent();
       if (!hasRealUser) {
         setTimeout(() => {
-          this.completeGame('system_agent_bot');
+          if (!this.hasRealUserPresent()) {
+            this.completeGame('system_agent_bot');
+          }
         }, 1200);
       }
     } else {
@@ -811,7 +818,12 @@ export class TableInstance {
       this.savePersistedState();
     }
 
-    // Check if table now has ALL 4 players as AI agents
+    // If a human spectator or seated player is present, DO NOT run instant game completion!
+    if (this.hasRealUserPresent()) {
+      return { timedOut: false, replacedSeats };
+    }
+
+    // Check if table now has ALL 4 players as AI agents and zero human spectators
     const remainingHumans = this.state.players.filter((p) => !p.isAgent);
     if (remainingHumans.length === 0) {
       this.finishGameWithAllAgents();
@@ -850,6 +862,12 @@ export class TableInstance {
 
   public finishGameWithAllAgents() {
     if (this.state.status === 'COMPLETED_CLOSED') return;
+
+    // Safety guard: NEVER instant-finish if a human spectator or seated player is present!
+    if (this.hasRealUserPresent()) {
+      this.ensureAgentsPlayingWithTime();
+      return;
+    }
 
     this.state.lastActionMessage = 'All players inactive for > 30 min. Running tournament to completion with AI agents...';
     this.notify();

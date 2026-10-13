@@ -26,12 +26,14 @@ interface CompletedGamesListProps {
   onSelectGame: (game: CompletedGameRecord) => void;
   onWatchReplay?: (game: CompletedGameRecord) => void;
   searchQuery?: string;
+  isAdmin?: boolean;
 }
 
 export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
   onSelectGame,
   onWatchReplay,
   searchQuery = '',
+  isAdmin = false,
 }) => {
   const [games, setGames] = useState<CompletedGameRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,12 +291,12 @@ export const CompletedGamesList: React.FC<CompletedGamesListProps> = ({
 
         {/* View Mode, Purge Duplicates & Refresh */}
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
-          {duplicateCount > 0 && (
+          {isAdmin && duplicateCount > 0 && (
             <button
               onClick={handlePurgeDuplicates}
               disabled={isPurgingDuplicates}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition shadow"
-              title="Clean redundant duplicate documents from Firestore database"
+              title="Clean redundant duplicate documents from Firestore database (Admin only)"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{isPurgingDuplicates ? 'Cleaning...' : `Purge ${duplicateCount} DB Duplicates`}</span>

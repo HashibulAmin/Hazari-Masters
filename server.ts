@@ -176,7 +176,9 @@ async function checkAllTablesForAbandonment() {
 
       if (allAgents && isIdle30m) {
         const table = getOrCreateTable(tId, data.tableName || 'Hazari Table');
-        table.checkAbandonedGameTimeout(0); // Force finish game with AI agents and close
+        if (!table.hasRealUserPresent()) {
+          table.checkAbandonedGameTimeout(0); // Force finish game with AI agents and close only if zero humans present
+        }
       }
     });
   } catch (err) {
@@ -227,6 +229,7 @@ io.on('connection', (socket: Socket) => {
       socket.join(tableId);
 
       const table = getOrCreateTable(tableId, tableName);
+      table.removeSpectator(socket.id);
       const joinResult = table.joinTable(userId, userName, socket.id, preferredSeat);
 
       if (joinResult.success) {
@@ -265,6 +268,7 @@ io.on('connection', (socket: Socket) => {
 
       const table = getOrCreateTable(tableId, tableName);
       userSeatIndex = null;
+      table.addSpectator(socket.id, userId, userName);
 
       socket.emit('table:joined', {
         seatIndex: null,
@@ -273,13 +277,24 @@ io.on('connection', (socket: Socket) => {
         pipelineStatus: gamePipeline.getPipelineStatus(),
       });
       socket.emit('table:chat_history', table.getRecentChatMessages());
+      io.to(tableId).emit('table:state_update', { tableState: table.state });
 
       // If game is in WAITING state, start deal so inspector can observe live gameplay
       if (table.state.status === 'WAITING') {
         table.startDeal();
+      } else {
+        table.ensureAgentsPlayingWithTime();
       }
     }
   );
+
+  socket.on('leave_inspect', ({ tableId = 'main' }: { tableId?: string }) => {
+    const table = tables.get(tableId);
+    if (table) {
+      table.removeSpectator(socket.id);
+      io.to(tableId).emit('table:state_update', { tableState: table.state });
+    }
+  });
 
   socket.on(
     'send_chat_message',
@@ -446,7 +461,9 @@ io.on('connection', (socket: Socket) => {
   socket.on('disconnect', () => {
     const table = tables.get(currentTableId);
     if (table) {
+      table.removeSpectator(socket.id);
       table.handlePlayerDisconnect(socket.id);
+      io.to(currentTableId).emit('table:state_update', { tableState: table.state });
     }
   });
 });

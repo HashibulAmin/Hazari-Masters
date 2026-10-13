@@ -569,6 +569,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         {activeTab === 'completed' && (
           <CompletedGamesList
             searchQuery={searchFilter}
+            isAdmin={isAdmin}
             onSelectGame={(game) => setSelectedCompletedGame(game)}
             onWatchReplay={(game) => setReplayGame(game)}
           />

@@ -188,6 +188,11 @@ export const socketMiddleware: Middleware = (store) => {
       });
     }
 
+    if (action.type === 'socket/leaveInspect') {
+      const tableId = action.payload?.tableId || store.getState().network.tableId;
+      emitWithLag('leave_inspect', { tableId });
+    }
+
     if (action.type === 'socket/sendChatMessage') {
       const net = store.getState().network;
       const tbl = store.getState().table;

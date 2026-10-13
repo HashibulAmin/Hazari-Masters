@@ -147,6 +147,7 @@ export interface TableState {
   }[];
   lastActionMessage: string;
   updatedAt: number;
+  spectatorCount?: number;
 }
 
 // Client-specific state holding the local player's private hand:
